@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
-import { CheckCircle, Shield, Star, Zap, Loader2 } from "lucide-react";
+import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -40,6 +40,9 @@ interface AgentReasoning {
 const Index = () => {
   const [jiraUrl, setJiraUrl] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isCheckingExisting, setIsCheckingExisting] = useState(false);
+  const [existingTestPlan, setExistingTestPlan] = useState<any>(null);
+  const [updateMode, setUpdateMode] = useState(false);
   const [storyData, setStoryData] = useState<StoryData | null>(null);
   const [agentAnalysis, setAgentAnalysis] = useState<AgentAnalysis | null>(null);
   const [qualityMetrics, setQualityMetrics] = useState<QualityMetrics | null>(null);
@@ -73,17 +76,69 @@ const Index = () => {
       return;
     }
 
-    setIsGenerating(true);
+    setIsCheckingExisting(true);
+    setIsGenerating(false);
     setStoryData(null);
     setTestPlan(null);
     setAgentReasoning([]);
+    setExistingTestPlan(null);
+    setUpdateMode(false);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/webhook/generate-testplan`, {
+      const issueKey = jiraUrl.split('/').pop();
+      
+      const checkResponse = await axios.post(`${API_BASE_URL}/webhook/check-existing-testplan`, {
+        issueKey: issueKey,
+      });
+
+      if (checkResponse.data.exists) {
+        setExistingTestPlan({
+          subtaskKey: checkResponse.data.subtaskKey,
+          subtaskUrl: checkResponse.data.subtaskUrl,
+          summary: checkResponse.data.summary,
+          created: checkResponse.data.created,
+          currentTestPlan: checkResponse.data.testPlanContent,
+        });
+        setIsCheckingExisting(false);
+        return;
+      }
+
+      setIsCheckingExisting(false);
+      await generateTestPlan(false);
+    } catch (error) {
+      console.error("Erreur:", error);
+      setIsCheckingExisting(false);
+      await generateTestPlan(false);
+    }
+  };
+
+  const handleUpdateExisting = async () => {
+    setUpdateMode(true);
+    await generateTestPlan(true);
+  };
+
+  const handleCreateNew = async () => {
+    setUpdateMode(false);
+    await generateTestPlan(false);
+  };
+
+  const generateTestPlan = async (isUpdate: boolean) => {
+    setIsGenerating(true);
+
+    try {
+      const requestBody: any = {
         jiraUrl,
         action: "generate",
         userId: "demo-user",
-      });
+      };
+
+      if (isUpdate && existingTestPlan) {
+        requestBody.updateMode = true;
+        requestBody.existingTestPlan = existingTestPlan.currentTestPlan;
+        requestBody.existingSubtaskKey = existingTestPlan.subtaskKey;
+      }
+
+      const response = await axios.post(`${API_BASE_URL}/webhook/generate-testplan`, requestBody);
 
       setStoryData({
         storyId: response.data.storyId,
@@ -114,22 +169,41 @@ const Index = () => {
     setIsApproving(true);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/webhook/approve-testplan`, {
-        parentIssueKey: storyData?.storyId,
-        storyTitle: storyData?.storyTitle,
-        testPlan: testPlan,
-        testPlanId: testPlanId,
-        action: "approve",
-      });
+      if (updateMode && existingTestPlan) {
+        await axios.post(`${API_BASE_URL}/webhook/update-testplan`, {
+          subtaskKey: existingTestPlan.subtaskKey,
+          storyTitle: storyData?.storyTitle,
+          testPlan: testPlan,
+          testPlanId: testPlanId,
+          action: "update",
+        });
 
-      setSubtaskKey(response.data.subtaskKey);
-      setSubtaskUrl(response.data.subtaskUrl);
+        toast({
+          title: "✅ Test plan mis à jour",
+          description: "Le test plan a été mis à jour avec succès",
+        });
+
+        setSubtaskKey(existingTestPlan.subtaskKey);
+        setSubtaskUrl(existingTestPlan.subtaskUrl);
+      } else {
+        const response = await axios.post(`${API_BASE_URL}/webhook/approve-testplan`, {
+          parentIssueKey: storyData?.storyId,
+          storyTitle: storyData?.storyTitle,
+          testPlan: testPlan,
+          testPlanId: testPlanId,
+          action: "approve",
+        });
+
+        setSubtaskKey(response.data.subtaskKey);
+        setSubtaskUrl(response.data.subtaskUrl);
+      }
+
       setShowSuccessModal(true);
     } catch (error) {
       console.error("Erreur:", error);
       toast({
         title: "❌ Erreur",
-        description: "Erreur lors de la création de la sub-task",
+        description: "Erreur lors de la création/mise à jour de la sub-task",
         variant: "destructive",
       });
     } finally {
@@ -190,6 +264,8 @@ const Index = () => {
     setTestPlanId(null);
     setQualityMetrics(null);
     setAgentAnalysis(null);
+    setExistingTestPlan(null);
+    setUpdateMode(false);
     setShowSuccessModal(false);
     setSubtaskKey("");
     setSubtaskUrl("");
@@ -243,11 +319,16 @@ const Index = () => {
             </div>
             <Button
               onClick={handleGenerate}
-              disabled={isGenerating || !jiraUrl.trim()}
+              disabled={isGenerating || isCheckingExisting || !jiraUrl.trim()}
               className="w-full h-12"
               size="lg"
             >
-              {isGenerating ? (
+              {isCheckingExisting ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Vérification des test plans existants...
+                </>
+              ) : isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                   L'agent IA analyse la story...
@@ -258,6 +339,58 @@ const Index = () => {
             </Button>
           </CardContent>
         </Card>
+
+        {/* Card 1.5 : Détection de Test Plan Existant */}
+        {existingTestPlan && (
+          <Card className="mb-6 border-2 border-warning bg-warning/5 animate-fade-in">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-4">
+                <AlertTriangle className="w-6 h-6 text-warning flex-shrink-0 mt-1" />
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold text-foreground mb-2">
+                    Test Plan Existant Détecté
+                  </h3>
+                  <p className="text-muted-foreground mb-3">
+                    Une sub-task de test plan existe déjà pour cette story :
+                  </p>
+                  <div className="bg-card rounded-lg p-4 mb-4 border">
+                    <div className="flex items-center gap-2 mb-2">
+                      <Badge variant="outline" className="border-primary text-primary">
+                        {existingTestPlan.subtaskKey}
+                      </Badge>
+                      <span className="text-sm text-muted-foreground">
+                        Créé le {new Date(existingTestPlan.created).toLocaleDateString('fr-FR')}
+                      </span>
+                    </div>
+                    <p className="text-sm font-medium">{existingTestPlan.summary}</p>
+                  </div>
+                  
+                  <p className="text-sm text-muted-foreground mb-4">
+                    🤔 Que souhaitez-vous faire ?
+                  </p>
+                  
+                  <div className="flex gap-3">
+                    <Button
+                      onClick={handleUpdateExisting}
+                      className="bg-warning hover:bg-warning/90 text-warning-foreground flex-1"
+                      disabled={isGenerating}
+                    >
+                      ✏️ Modifier le Test Plan Existant
+                    </Button>
+                    <Button
+                      onClick={handleCreateNew}
+                      variant="outline"
+                      className="border-warning text-warning hover:bg-warning/10 flex-1"
+                      disabled={isGenerating}
+                    >
+                      ➕ Créer un Nouveau Test Plan
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Card 2: Raisonnement de l'Agent */}
         {agentReasoning.length > 0 && (
@@ -326,7 +459,14 @@ const Index = () => {
         {testPlan && (
           <Card id="testplan-card" className="mb-6 animate-fade-in">
             <CardHeader>
-              <CardTitle>✨ Test Plan Généré par l'Agent IA</CardTitle>
+              <CardTitle>
+                {updateMode ? "✨ Test Plan Mis à Jour par l'Agent IA" : "✨ Test Plan Généré par l'Agent IA"}
+              </CardTitle>
+              {updateMode && existingTestPlan && (
+                <Badge className="bg-warning/10 text-warning hover:bg-warning/20 mt-2 w-fit">
+                  🔄 Mode Mise à Jour - Sub-task {existingTestPlan.subtaskKey}
+                </Badge>
+              )}
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="bg-muted p-6 rounded-lg border max-h-[600px] overflow-y-auto prose prose-sm max-w-none">
@@ -345,10 +485,10 @@ const Index = () => {
                   {isApproving ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      Création de la sub-task en cours...
+                      {updateMode ? "Mise à jour en cours..." : "Création de la sub-task en cours..."}
                     </>
                   ) : (
-                    "✅ Approuver & Créer Sub-task Jira"
+                    updateMode ? "✅ Valider & Mettre à Jour la Sub-task" : "✅ Approuver & Créer Sub-task Jira"
                   )}
                 </Button>
                 <Button

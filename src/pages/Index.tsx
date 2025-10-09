@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
-import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle } from "lucide-react";
+import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle, Globe } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,9 +9,17 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { StatCard } from "@/components/StatCard";
 import { TimelineStep } from "@/components/TimelineStep";
 import { useToast } from "@/hooks/use-toast";
+import { useLanguage, Language } from "@/contexts/LanguageContext";
+import { translations } from "@/translations";
 
 const API_BASE_URL = "https://superambitious-cohen-roentgenologically.ngrok-free.dev";
 
@@ -38,6 +46,9 @@ interface AgentReasoning {
 }
 
 const Index = () => {
+  const { language, setLanguage } = useLanguage();
+  const t = translations[language];
+  
   const [jiraUrl, setJiraUrl] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [isCheckingExisting, setIsCheckingExisting] = useState(false);
@@ -57,11 +68,16 @@ const Index = () => {
   const [subtaskUrl, setSubtaskUrl] = useState("");
   const { toast } = useToast();
 
+  const getLanguageName = (lang: Language) => {
+    const names = { fr: "Français", en: "English", ru: "Русский" };
+    return names[lang];
+  };
+
   const handleGenerate = async () => {
     if (!jiraUrl.trim()) {
       toast({
-        title: "⚠️ URL requise",
-        description: "Veuillez entrer une URL Jira valide",
+        title: t.toasts.urlRequired,
+        description: t.toasts.urlRequiredDesc,
         variant: "destructive",
       });
       return;
@@ -69,8 +85,8 @@ const Index = () => {
 
     if (!jiraUrl.includes("atlassian.net/browse/")) {
       toast({
-        title: "⚠️ URL invalide",
-        description: "L'URL doit contenir 'atlassian.net/browse/'",
+        title: t.toasts.urlInvalid,
+        description: t.toasts.urlInvalidDesc,
         variant: "destructive",
       });
       return;
@@ -156,8 +172,8 @@ const Index = () => {
     } catch (error) {
       console.error("Erreur:", error);
       toast({
-        title: "❌ Erreur",
-        description: "Erreur lors de la génération du test plan",
+        title: t.toasts.errorGenerate,
+        description: t.toasts.errorGenerateDesc,
         variant: "destructive",
       });
     } finally {
@@ -179,8 +195,8 @@ const Index = () => {
         });
 
         toast({
-          title: "✅ Test plan mis à jour",
-          description: "Le test plan a été mis à jour avec succès",
+          title: t.toasts.testPlanUpdated,
+          description: t.toasts.testPlanUpdatedDesc,
         });
 
         setSubtaskKey(existingTestPlan.subtaskKey);
@@ -202,8 +218,8 @@ const Index = () => {
     } catch (error) {
       console.error("Erreur:", error);
       toast({
-        title: "❌ Erreur",
-        description: "Erreur lors de la création/mise à jour de la sub-task",
+        title: t.toasts.errorApprove,
+        description: t.toasts.errorApproveDesc,
         variant: "destructive",
       });
     } finally {
@@ -214,8 +230,8 @@ const Index = () => {
   const handleCorrection = async () => {
     if (!feedbackText.trim()) {
       toast({
-        title: "⚠️ Feedback requis",
-        description: "Veuillez entrer votre feedback",
+        title: t.toasts.feedbackRequired,
+        description: t.toasts.feedbackRequiredDesc,
         variant: "destructive",
       });
       return;
@@ -241,14 +257,14 @@ const Index = () => {
       setFeedbackText("");
 
       toast({
-        title: "✅ Test plan régénéré",
-        description: "Le test plan a été mis à jour avec vos améliorations",
+        title: t.toasts.testPlanRegenerated,
+        description: t.toasts.testPlanRegeneratedDesc,
       });
     } catch (error) {
       console.error("Erreur:", error);
       toast({
-        title: "❌ Erreur",
-        description: "Erreur lors de la correction",
+        title: t.toasts.errorCorrection,
+        description: t.toasts.errorCorrectionDesc,
         variant: "destructive",
       });
     } finally {
@@ -288,10 +304,31 @@ const Index = () => {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="container flex h-16 items-center justify-between px-4">
-          <h1 className="text-xl font-bold text-primary">🤖 QA Agent IA - POC</h1>
-          <Badge variant="outline" className="border-secondary text-secondary">
-            Demo
-          </Badge>
+          <h1 className="text-xl font-bold text-primary">{t.header.title}</h1>
+          <div className="flex items-center gap-3">
+            <Badge variant="outline" className="border-secondary text-secondary">
+              {t.header.demo}
+            </Badge>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Globe className="h-4 w-4" />
+                  {getLanguageName(language)}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setLanguage("fr")}>
+                  🇫🇷 Français
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLanguage("en")}>
+                  🇬🇧 English
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLanguage("ru")}>
+                  🇷🇺 Русский
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
       </header>
 
@@ -300,18 +337,18 @@ const Index = () => {
         {/* Card 1: Sélection de la Story */}
         <Card className="mb-6 animate-fade-in">
           <CardHeader>
-            <CardTitle>📋 Étape 1 : Sélectionner une Story Jira</CardTitle>
-            <CardDescription>Collez l'URL complète de votre story Jira</CardDescription>
+            <CardTitle>{t.step1.title}</CardTitle>
+            <CardDescription>{t.step1.description}</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="jiraUrl">
-                URL de la Story Jira <span className="text-destructive">*</span>
+                {t.step1.label} <span className="text-destructive">{t.step1.required}</span>
               </Label>
               <Input
                 id="jiraUrl"
                 type="url"
-                placeholder="https://qaautomation-demo.atlassian.net/browse/KAN-5"
+                placeholder={t.step1.placeholder}
                 value={jiraUrl}
                 onChange={(e) => setJiraUrl(e.target.value)}
                 className="h-12"
@@ -326,15 +363,15 @@ const Index = () => {
               {isCheckingExisting ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Vérification des test plans existants...
+                  {t.step1.checking}
                 </>
               ) : isGenerating ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  L'agent IA analyse la story...
+                  {t.step1.analyzing}
                 </>
               ) : (
-                "🤖 Générer le Test Plan avec l'Agent IA"
+                t.step1.generateButton
               )}
             </Button>
           </CardContent>
@@ -348,10 +385,10 @@ const Index = () => {
                 <AlertTriangle className="w-6 h-6 text-warning flex-shrink-0 mt-1" />
                 <div className="flex-1">
                   <h3 className="text-lg font-semibold text-foreground mb-2">
-                    Test Plan Existant Détecté
+                    {t.existingPlan.title}
                   </h3>
                   <p className="text-muted-foreground mb-3">
-                    Une sub-task de test plan existe déjà pour cette story :
+                    {t.existingPlan.description}
                   </p>
                   <div className="bg-card rounded-lg p-4 mb-4 border">
                     <div className="flex items-center gap-2 mb-2">
@@ -359,14 +396,14 @@ const Index = () => {
                         {existingTestPlan.subtaskKey}
                       </Badge>
                       <span className="text-sm text-muted-foreground">
-                        Créé le {new Date(existingTestPlan.created).toLocaleDateString('fr-FR')}
+                        {t.existingPlan.createdOn} {new Date(existingTestPlan.created).toLocaleDateString(language === 'ru' ? 'ru-RU' : language === 'en' ? 'en-US' : 'fr-FR')}
                       </span>
                     </div>
                     <p className="text-sm font-medium">{existingTestPlan.summary}</p>
                   </div>
                   
                   <p className="text-sm text-muted-foreground mb-4">
-                    🤔 Que souhaitez-vous faire ?
+                    {t.existingPlan.question}
                   </p>
                   
                   <div className="flex gap-3">
@@ -375,7 +412,7 @@ const Index = () => {
                       className="bg-warning hover:bg-warning/90 text-warning-foreground flex-1"
                       disabled={isGenerating}
                     >
-                      ✏️ Modifier le Test Plan Existant
+                      {t.existingPlan.update}
                     </Button>
                     <Button
                       onClick={handleCreateNew}
@@ -383,7 +420,7 @@ const Index = () => {
                       className="border-warning text-warning hover:bg-warning/10 flex-1"
                       disabled={isGenerating}
                     >
-                      ➕ Créer un Nouveau Test Plan
+                      {t.existingPlan.createNew}
                     </Button>
                   </div>
                 </div>
@@ -396,7 +433,7 @@ const Index = () => {
         {agentReasoning.length > 0 && (
           <Card className="mb-6 border-2 border-primary bg-primary/5 animate-fade-in">
             <CardHeader>
-              <CardTitle className="text-primary">🧠 Raisonnement de l'Agent IA</CardTitle>
+              <CardTitle className="text-primary">{t.reasoning.title}</CardTitle>
             </CardHeader>
             <CardContent>
               {agentReasoning.map((step, i) => (
@@ -415,16 +452,16 @@ const Index = () => {
         {storyData && agentAnalysis && qualityMetrics && (
           <Card className="mb-6 animate-fade-in">
             <CardHeader>
-              <CardTitle>📖 Détails de la Story</CardTitle>
+              <CardTitle>{t.storyDetails.title}</CardTitle>
               <div className="flex flex-wrap gap-2 mt-4">
                 <Badge variant="outline" className="border-primary text-primary">
                   {storyData.storyId}
                 </Badge>
                 <Badge className={getCriticalityBadgeColor(agentAnalysis.criticalityLevel)}>
-                  Criticité: {agentAnalysis.criticalityLevel}
+                  {t.storyDetails.criticality}: {agentAnalysis.criticalityLevel}
                 </Badge>
                 <Badge className="bg-success/10 text-success hover:bg-success/20">
-                  {agentAnalysis.totalTestCases} test cases
+                  {agentAnalysis.totalTestCases} {t.storyDetails.testCases}
                 </Badge>
               </div>
             </CardHeader>
@@ -434,19 +471,19 @@ const Index = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <StatCard
                   icon={Shield}
-                  label="Sécurité"
-                  value={agentAnalysis.securityRequired ? "Requise" : "Non requise"}
+                  label={t.storyDetails.security}
+                  value={agentAnalysis.securityRequired ? t.storyDetails.required : t.storyDetails.notRequired}
                   color={agentAnalysis.securityRequired ? "destructive" : "success"}
                 />
                 <StatCard
                   icon={Star}
-                  label="Score Qualité"
+                  label={t.storyDetails.qualityScore}
                   value={`${qualityMetrics.score}/10`}
                   color="success"
                 />
                 <StatCard
                   icon={Zap}
-                  label="Itérations"
+                  label={t.storyDetails.iterations}
                   value={qualityMetrics.iterations.toString()}
                   color="secondary"
                 />
@@ -460,11 +497,11 @@ const Index = () => {
           <Card id="testplan-card" className="mb-6 animate-fade-in">
             <CardHeader>
               <CardTitle>
-                {updateMode ? "✨ Test Plan Mis à Jour par l'Agent IA" : "✨ Test Plan Généré par l'Agent IA"}
+                {updateMode ? t.testPlan.titleUpdated : t.testPlan.titleGenerated}
               </CardTitle>
               {updateMode && existingTestPlan && (
                 <Badge className="bg-warning/10 text-warning hover:bg-warning/20 mt-2 w-fit">
-                  🔄 Mode Mise à Jour - Sub-task {existingTestPlan.subtaskKey}
+                  {t.testPlan.updateMode} {existingTestPlan.subtaskKey}
                 </Badge>
               )}
             </CardHeader>
@@ -485,10 +522,10 @@ const Index = () => {
                   {isApproving ? (
                     <>
                       <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                      {updateMode ? "Mise à jour en cours..." : "Création de la sub-task en cours..."}
+                      {updateMode ? t.testPlan.updating : t.testPlan.approving}
                     </>
                   ) : (
-                    updateMode ? "✅ Valider & Mettre à Jour la Sub-task" : "✅ Approuver & Créer Sub-task Jira"
+                    updateMode ? t.testPlan.updateButton : t.testPlan.approveButton
                   )}
                 </Button>
                 <Button
@@ -497,7 +534,7 @@ const Index = () => {
                   size="lg"
                   className="border-warning text-warning hover:bg-warning/10"
                 >
-                  ✏️ Demander une Correction
+                  {t.testPlan.correctionButton}
                 </Button>
               </div>
             </CardContent>
@@ -509,13 +546,13 @@ const Index = () => {
       <Dialog open={showCorrectionModal} onOpenChange={setShowCorrectionModal}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>💬 Quelle amélioration souhaitez-vous ?</DialogTitle>
+            <DialogTitle>{t.correctionModal.title}</DialogTitle>
             <DialogDescription>
-              L'agent IA va analyser votre feedback et régénérer le test plan
+              {t.correctionModal.helper}
             </DialogDescription>
           </DialogHeader>
           <Textarea
-            placeholder="Exemple : Ajouter plus de tests de sécurité pour les cas d'injection SQL et XSS..."
+            placeholder={t.correctionModal.placeholder}
             value={feedbackText}
             onChange={(e) => setFeedbackText(e.target.value)}
             rows={6}
@@ -529,10 +566,10 @@ const Index = () => {
                 setFeedbackText("");
               }}
             >
-              Annuler
+              {t.correctionModal.cancel}
             </Button>
             <Button onClick={handleCorrection} disabled={!feedbackText.trim()}>
-              🔄 Régénérer avec ces améliorations
+              {t.correctionModal.regenerate}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -545,9 +582,9 @@ const Index = () => {
             <div className="mx-auto mb-4">
               <CheckCircle className="w-16 h-16 text-success" />
             </div>
-            <DialogTitle className="text-2xl">🎉 Sub-task Créée avec Succès !</DialogTitle>
+            <DialogTitle className="text-2xl">{t.successModal.title}</DialogTitle>
             <DialogDescription>
-              La sub-task {subtaskKey} a été créée dans Jira
+              {t.successModal.description.replace('{key}', subtaskKey)}
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-3 mt-4">
@@ -556,7 +593,7 @@ const Index = () => {
               size="lg"
               className="w-full"
             >
-              🔗 Voir dans Jira
+              {t.successModal.viewInJira}
             </Button>
             <Button
               onClick={resetForm}
@@ -564,7 +601,7 @@ const Index = () => {
               size="lg"
               className="w-full"
             >
-              ➕ Créer un Autre Test Plan
+              {t.successModal.createAnother}
             </Button>
           </div>
         </DialogContent>

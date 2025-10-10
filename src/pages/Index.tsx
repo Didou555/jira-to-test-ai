@@ -450,7 +450,7 @@ const Index = () => {
         )}
 
         {/* Card 2: Raisonnement de l'Agent */}
-        {agentReasoning.length > 0 && (
+        {agentReasoning && agentReasoning.length > 0 && (
           <Card className="mb-6 border-2 border-primary bg-primary/5 animate-fade-in">
             <CardHeader>
               <CardTitle className="text-primary">{t.reasoning.title}</CardTitle>

@@ -4,7 +4,7 @@ interface StatCardProps {
   icon: LucideIcon;
   label: string;
   value: string;
-  color: "success" | "destructive" | "secondary" | "primary";
+  color: "success" | "destructive" | "secondary" | "primary" | "warning";
 }
 
 export const StatCard = ({ icon: Icon, label, value, color }: StatCardProps) => {
@@ -12,7 +12,8 @@ export const StatCard = ({ icon: Icon, label, value, color }: StatCardProps) => 
     success: "text-success",
     destructive: "text-destructive",
     secondary: "text-secondary",
-    primary: "text-primary"
+    primary: "text-primary",
+    warning: "text-warning"
   };
 
   return (

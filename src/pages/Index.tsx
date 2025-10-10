@@ -30,12 +30,29 @@ interface StoryData {
 
 interface AgentAnalysis {
   criticalityLevel: "HIGH" | "MEDIUM" | "LOW";
-  totalTestCases: number;
   securityRequired: boolean;
+  performanceRequired: boolean;
+  minTestCases: number;
+}
+
+interface TestCaseMetrics {
+  generated: number;
+  properlyFormatted: number;
+  target: number;
+  minimum: number;
+  percentageOfTarget: number;
 }
 
 interface QualityMetrics {
   score: number;
+  maxScore: number;
+  breakdown: {
+    structure: number;
+    format: number;
+    quantity: number;
+    special: number;
+    quality: number;
+  };
   iterations: number;
 }
 
@@ -56,6 +73,7 @@ const Index = () => {
   const [updateMode, setUpdateMode] = useState(false);
   const [storyData, setStoryData] = useState<StoryData | null>(null);
   const [agentAnalysis, setAgentAnalysis] = useState<AgentAnalysis | null>(null);
+  const [testCaseMetrics, setTestCaseMetrics] = useState<TestCaseMetrics | null>(null);
   const [qualityMetrics, setQualityMetrics] = useState<QualityMetrics | null>(null);
   const [agentReasoning, setAgentReasoning] = useState<AgentReasoning[]>([]);
   const [testPlan, setTestPlan] = useState<string | null>(null);
@@ -161,6 +179,7 @@ const Index = () => {
         storyTitle: response.data.storyTitle,
       });
       setAgentAnalysis(response.data.agentAnalysis);
+      setTestCaseMetrics(response.data.testCaseMetrics);
       setQualityMetrics(response.data.qualityMetrics);
       setAgentReasoning(response.data.agentReasoning);
       setTestPlan(response.data.testPlan);
@@ -278,6 +297,7 @@ const Index = () => {
     setTestPlan(null);
     setAgentReasoning([]);
     setTestPlanId(null);
+    setTestCaseMetrics(null);
     setQualityMetrics(null);
     setAgentAnalysis(null);
     setExistingTestPlan(null);
@@ -449,7 +469,7 @@ const Index = () => {
         )}
 
         {/* Card 3: Aperçu de la Story */}
-        {storyData && agentAnalysis && qualityMetrics && (
+        {storyData && agentAnalysis && testCaseMetrics && qualityMetrics && (
           <Card className="mb-6 animate-fade-in">
             <CardHeader>
               <CardTitle>{t.storyDetails.title}</CardTitle>
@@ -461,13 +481,48 @@ const Index = () => {
                   {t.storyDetails.criticality}: {agentAnalysis.criticalityLevel}
                 </Badge>
                 <Badge className="bg-success/10 text-success hover:bg-success/20">
-                  {agentAnalysis.totalTestCases} {t.storyDetails.testCases}
+                  {testCaseMetrics.generated} {t.storyDetails.testCases}
                 </Badge>
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
               <h3 className="text-xl font-semibold">{storyData.storyTitle}</h3>
               <div className="border-t my-4" />
+              
+              {/* Test Case Metrics */}
+              <div className="bg-muted/50 p-4 rounded-lg border space-y-3">
+                <h4 className="font-semibold text-sm">{t.storyDetails.testCoverage}</h4>
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{t.storyDetails.generated}:</span>
+                    <span className="font-medium">{testCaseMetrics.generated} {t.storyDetails.testCases}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{t.storyDetails.properlyFormatted}:</span>
+                    <span className="font-medium">{testCaseMetrics.properlyFormatted}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">{t.storyDetails.target}:</span>
+                    <span className="font-medium">{testCaseMetrics.generated} / {testCaseMetrics.target}</span>
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">{t.storyDetails.progress}:</span>
+                      <span className="font-medium">{testCaseMetrics.percentageOfTarget}%</span>
+                    </div>
+                    <div className="w-full bg-muted rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full transition-all ${
+                          testCaseMetrics.percentageOfTarget >= 90 ? 'bg-success' :
+                          testCaseMetrics.percentageOfTarget >= 70 ? 'bg-warning' : 'bg-destructive'
+                        }`}
+                        style={{ width: `${Math.min(testCaseMetrics.percentageOfTarget, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <StatCard
                   icon={Shield}
@@ -478,8 +533,8 @@ const Index = () => {
                 <StatCard
                   icon={Star}
                   label={t.storyDetails.qualityScore}
-                  value={`${qualityMetrics.score}/10`}
-                  color="success"
+                  value={`${qualityMetrics.score}/${qualityMetrics.maxScore}`}
+                  color={qualityMetrics.score >= 9.0 ? "success" : qualityMetrics.score >= 7.0 ? "warning" : "destructive"}
                 />
                 <StatCard
                   icon={Zap}

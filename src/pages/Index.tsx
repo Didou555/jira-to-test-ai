@@ -449,21 +449,54 @@ const Index = () => {
           </Card>
         )}
 
-        {/* Card 2: Raisonnement de l'Agent */}
-        {agentReasoning && agentReasoning.length > 0 && (
+        {/* Card 2: AI Agent Analysis */}
+        {storyData && agentAnalysis && testCaseMetrics && qualityMetrics && (
           <Card className="mb-6 border-2 border-primary bg-primary/5 animate-fade-in">
             <CardHeader>
               <CardTitle className="text-primary">{t.reasoning.title}</CardTitle>
             </CardHeader>
-            <CardContent>
-              {agentReasoning.map((step, i) => (
-                <TimelineStep
-                  key={i}
-                  thought={step.thought}
-                  decision={step.decision}
-                  impact={step.impact}
-                />
-              ))}
+            <CardContent className="space-y-3">
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-success" />
+                <span className="text-sm">
+                  <strong>{t.reasoning.storyAnalyzed}:</strong> {storyData.storyId}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-warning" />
+                <span className="text-sm">
+                  <strong>{t.reasoning.criticalityDetected}:</strong> {agentAnalysis.criticalityLevel}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-success" />
+                <span className="text-sm">
+                  <strong>{t.reasoning.testCasesGenerated}:</strong> {testCaseMetrics.generated} ({t.reasoning.target}: {testCaseMetrics.target})
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Star className="w-5 h-5 text-success" />
+                <span className="text-sm">
+                  <strong>{t.reasoning.qualityScore}:</strong> {qualityMetrics.score}/{qualityMetrics.maxScore}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Shield className="w-5 h-5 text-destructive" />
+                <span className="text-sm">
+                  <strong>{t.reasoning.securityTests}:</strong> {agentAnalysis.securityRequired ? `${t.reasoning.required} (${t.reasoning.owasp})` : t.reasoning.notRequired}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Zap className="w-5 h-5 text-warning" />
+                <span className="text-sm">
+                  <strong>{t.reasoning.performanceTests}:</strong> {agentAnalysis.performanceRequired ? t.reasoning.required : t.reasoning.notRequired}
+                </span>
+              </div>
             </CardContent>
           </Card>
         )}

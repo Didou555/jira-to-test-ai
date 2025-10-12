@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
-import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle, Globe } from "lucide-react";
+import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle, Globe, List, ChevronDown, FolderOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,6 +9,10 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Progress } from "@/components/ui/progress";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -84,6 +88,17 @@ const Index = () => {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [subtaskKey, setSubtaskKey] = useState("");
   const [subtaskUrl, setSubtaskUrl] = useState("");
+  
+  // Qmetry Export States
+  const [showTestCaseList, setShowTestCaseList] = useState(false);
+  const [testCaseList, setTestCaseList] = useState<any[]>([]);
+  const [selectedTestCases, setSelectedTestCases] = useState<string[]>([]);
+  const [isGeneratingDetails, setIsGeneratingDetails] = useState(false);
+  const [testCasesWithDetails, setTestCasesWithDetails] = useState<any[]>([]);
+  const [qmetryFolders, setQmetryFolders] = useState<any[]>([]);
+  const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [isExporting, setIsExporting] = useState(false);
+  const [showFolderModal, setShowFolderModal] = useState(false);
   const { toast } = useToast();
 
   const getLanguageName = (lang: Language) => {
@@ -305,7 +320,170 @@ const Index = () => {
     setShowSuccessModal(false);
     setSubtaskKey("");
     setSubtaskUrl("");
+    setShowTestCaseList(false);
+    setTestCaseList([]);
+    setSelectedTestCases([]);
+    setTestCasesWithDetails([]);
+    setQmetryFolders([]);
+    setSelectedFolderId(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // Qmetry Export Functions
+  const handleShowTestCases = async () => {
+    try {
+      const response = await axios.post(`${API_BASE_URL}/webhook/parse-test-cases`, {
+        testPlan: testPlan,
+      });
+
+      setTestCaseList(response.data.testCases || []);
+      setShowTestCaseList(true);
+
+      toast({
+        title: t.toasts.testCasesParsed,
+        description: t.toasts.testCasesParsedDesc.replace("{count}", String(response.data.testCases?.length || 0)),
+      });
+    } catch (error) {
+      console.error("Error parsing test cases:", error);
+      toast({
+        title: t.toasts.errorParsing,
+        description: t.toasts.errorParsingDesc,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleSelectAllTestCases = () => {
+    if (selectedTestCases.length === testCaseList.length) {
+      setSelectedTestCases([]);
+    } else {
+      setSelectedTestCases(testCaseList.map((tc: any) => tc.id));
+    }
+  };
+
+  const handleToggleTestCase = (testCaseId: string) => {
+    setSelectedTestCases((prev) =>
+      prev.includes(testCaseId) ? prev.filter((id) => id !== testCaseId) : [...prev, testCaseId]
+    );
+  };
+
+  const handleGenerateDetails = async () => {
+    if (selectedTestCases.length === 0) {
+      toast({
+        title: t.toasts.selectTestCases,
+        description: t.toasts.selectTestCasesDesc,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsGeneratingDetails(true);
+
+    try {
+      const selectedTCs = testCaseList.filter((tc: any) => selectedTestCases.includes(tc.id));
+
+      const response = await axios.post(`${API_BASE_URL}/webhook/generate-test-case-details`, {
+        selectedTestCases: selectedTCs,
+        storyContext: {
+          storyId: storyData?.storyId,
+          storyTitle: storyData?.storyTitle,
+          description: "Context from story",
+        },
+      });
+
+      setTestCasesWithDetails(response.data.testCasesWithDetails || []);
+
+      toast({
+        title: t.toasts.testCasesGenerated,
+        description: t.toasts.testCasesGeneratedDesc.replace("{count}", String(response.data.testCasesWithDetails?.length || 0)),
+      });
+
+      setTimeout(() => {
+        document.getElementById("detailed-test-cases")?.scrollIntoView({ behavior: "smooth" });
+      }, 300);
+    } catch (error) {
+      console.error("Error generating details:", error);
+      toast({
+        title: t.toasts.errorGeneratingDetails,
+        description: t.toasts.errorGeneratingDetailsDesc,
+        variant: "destructive",
+      });
+    } finally {
+      setIsGeneratingDetails(false);
+    }
+  };
+
+  const handleLoadQmetryFolders = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/webhook/qmetry-folders`);
+
+      setQmetryFolders(response.data.folders || []);
+      setShowFolderModal(true);
+
+      toast({
+        title: t.toasts.foldersLoaded,
+        description: t.toasts.foldersLoadedDesc.replace("{count}", String(response.data.folders?.length || 0)),
+      });
+    } catch (error) {
+      console.error("Error loading folders:", error);
+      toast({
+        title: t.toasts.errorLoadingFolders,
+        description: t.toasts.errorLoadingFoldersDesc,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleExportToQmetry = async () => {
+    if (!selectedFolderId) {
+      toast({
+        title: t.toasts.errorExporting,
+        description: "Please select a folder first",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsExporting(true);
+
+    try {
+      const response = await axios.post(`${API_BASE_URL}/webhook/export-to-qmetry`, {
+        testCasesWithDetails: testCasesWithDetails,
+        selectedFolderId: selectedFolderId,
+      });
+
+      toast({
+        title: t.toasts.exportSuccess,
+        description: t.toasts.exportSuccessDesc.replace("{count}", String(testCasesWithDetails.length)),
+      });
+
+      // Reset Qmetry export states
+      setShowTestCaseList(false);
+      setTestCaseList([]);
+      setSelectedTestCases([]);
+      setTestCasesWithDetails([]);
+      setSelectedFolderId(null);
+    } catch (error) {
+      console.error("Error exporting to Qmetry:", error);
+      toast({
+        title: t.toasts.errorExporting,
+        description: t.toasts.errorExportingDesc,
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  const getPriorityBadgeColor = (priority: string) => {
+    switch (priority) {
+      case "P0":
+        return "bg-destructive/10 text-destructive hover:bg-destructive/20";
+      case "P1":
+        return "bg-warning/10 text-warning hover:bg-warning/20";
+      default:
+        return "bg-primary/10 text-primary hover:bg-primary/20";
+    }
   };
 
   const getCriticalityBadgeColor = (level: string) => {
@@ -600,6 +778,19 @@ const Index = () => {
 
               <div className="border-t my-8" />
 
+              {/* Bouton Afficher Test Cases */}
+              <div className="flex justify-center mb-4">
+                <Button
+                  onClick={handleShowTestCases}
+                  variant="outline"
+                  size="lg"
+                  className="border-primary text-primary hover:bg-primary/10"
+                >
+                  <List className="mr-2 h-5 w-5" />
+                  {t.qmetryExport.showTestCasesButton}
+                </Button>
+              </div>
+
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Button
                   onClick={handleApprove}
@@ -624,6 +815,263 @@ const Index = () => {
                 >
                   {t.testPlan.correctionButton}
                 </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Card 5: Liste des Test Cases avec Checkboxes */}
+        {showTestCaseList && testCaseList.length > 0 && (
+          <Card className="mb-6 animate-fade-in">
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <CardTitle>
+                  {t.qmetryExport.listTitle}{" "}
+                  <Badge variant="outline" className="ml-2">
+                    {testCaseList.length}
+                  </Badge>
+                </CardTitle>
+                <Button
+                  onClick={handleSelectAllTestCases}
+                  variant="outline"
+                  size="sm"
+                >
+                  {selectedTestCases.length === testCaseList.length
+                    ? t.qmetryExport.deselectAll
+                    : t.qmetryExport.selectAll}
+                </Button>
+              </div>
+              <CardDescription>{t.qmetryExport.listDescription}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="mb-4 p-3 bg-muted rounded-lg">
+                <p className="text-sm font-medium">
+                  {t.qmetryExport.selectedCount
+                    .replace("{count}", String(selectedTestCases.length))
+                    .replace("{total}", String(testCaseList.length))}
+                </p>
+              </div>
+
+              <div className="space-y-2 max-h-[500px] overflow-y-auto">
+                {testCaseList.map((testCase: any) => (
+                  <div
+                    key={testCase.id}
+                    className="flex items-start gap-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                  >
+                    <Checkbox
+                      id={testCase.id}
+                      checked={selectedTestCases.includes(testCase.id)}
+                      onCheckedChange={() => handleToggleTestCase(testCase.id)}
+                      className="mt-1"
+                    />
+                    <div className="flex-1">
+                      <Label
+                        htmlFor={testCase.id}
+                        className="cursor-pointer text-sm font-medium"
+                      >
+                        {testCase.id}: {testCase.title}
+                      </Label>
+                      <div className="flex gap-2 mt-2">
+                        <Badge className={getPriorityBadgeColor(testCase.priority)}>
+                          {testCase.priority}
+                        </Badge>
+                        {testCase.category && (
+                          <Badge variant="outline">{testCase.category}</Badge>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="border-t my-6" />
+
+              <div className="flex justify-center">
+                <Button
+                  onClick={handleGenerateDetails}
+                  disabled={selectedTestCases.length === 0 || isGeneratingDetails}
+                  size="lg"
+                  className="bg-primary hover:bg-primary/90"
+                >
+                  {isGeneratingDetails ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      {t.qmetryExport.generating}
+                    </>
+                  ) : (
+                    <>
+                      <Star className="mr-2 h-5 w-5" />
+                      {t.qmetryExport.generateDetailsButton}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Card 6: Test Cases Détaillés */}
+        {testCasesWithDetails.length > 0 && (
+          <Card id="detailed-test-cases" className="mb-6 animate-fade-in">
+            <CardHeader>
+              <CardTitle>{t.qmetryExport.detailsTitle}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Accordion type="single" collapsible className="space-y-2">
+                {testCasesWithDetails.map((testCase: any, index: number) => (
+                  <AccordionItem
+                    key={testCase.id || index}
+                    value={`item-${index}`}
+                    className="border rounded-lg px-4"
+                  >
+                    <AccordionTrigger className="hover:no-underline">
+                      <div className="flex items-center gap-3 text-left">
+                        <Badge className={getPriorityBadgeColor(testCase.priority)}>
+                          {testCase.priority}
+                        </Badge>
+                        <span className="font-semibold">
+                          {testCase.id}: {testCase.title}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="space-y-4 pt-4">
+                      {/* Description */}
+                      <div>
+                        <h4 className="font-semibold text-sm mb-2">
+                          {t.qmetryExport.description}
+                        </h4>
+                        <p className="text-sm text-muted-foreground">
+                          {testCase.description}
+                        </p>
+                      </div>
+
+                      {/* Preconditions */}
+                      {testCase.preconditions && testCase.preconditions.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-sm mb-2">
+                            {t.qmetryExport.preconditions}
+                          </h4>
+                          <ul className="list-disc list-inside space-y-1">
+                            {testCase.preconditions.map((precondition: string, i: number) => (
+                              <li key={i} className="text-sm text-muted-foreground">
+                                {precondition}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Test Steps */}
+                      {testCase.testSteps && testCase.testSteps.length > 0 && (
+                        <div>
+                          <h4 className="font-semibold text-sm mb-2">
+                            {t.qmetryExport.testSteps}
+                          </h4>
+                          <div className="border rounded-lg overflow-hidden">
+                            <table className="w-full text-sm">
+                              <thead className="bg-muted">
+                                <tr>
+                                  <th className="text-left p-2 font-semibold">
+                                    {t.qmetryExport.step}
+                                  </th>
+                                  <th className="text-left p-2 font-semibold">
+                                    {t.qmetryExport.action}
+                                  </th>
+                                  <th className="text-left p-2 font-semibold">
+                                    {t.qmetryExport.expectedResult}
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {testCase.testSteps.map((step: any, i: number) => (
+                                  <tr key={i} className="border-t">
+                                    <td className="p-2">{step.step}</td>
+                                    <td className="p-2 text-muted-foreground">
+                                      {step.action}
+                                    </td>
+                                    <td className="p-2 text-muted-foreground">
+                                      {step.expectedResult}
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Additional Info */}
+                      <div className="flex gap-4 text-sm">
+                        {testCase.estimatedTime && (
+                          <div>
+                            <span className="font-semibold">{t.qmetryExport.estimatedTime}:</span>{" "}
+                            <span className="text-muted-foreground">{testCase.estimatedTime}</span>
+                          </div>
+                        )}
+                        {testCase.labels && testCase.labels.length > 0 && (
+                          <div className="flex gap-2">
+                            <span className="font-semibold">{t.qmetryExport.labels}:</span>
+                            {testCase.labels.map((label: string, i: number) => (
+                              <Badge key={i} variant="outline">
+                                {label}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+
+              <div className="border-t my-6" />
+
+              {/* Section Sélection Dossier et Export */}
+              <div className="space-y-4">
+                {!selectedFolderId ? (
+                  <div className="flex justify-center">
+                    <Button
+                      onClick={handleLoadQmetryFolders}
+                      size="lg"
+                      variant="outline"
+                      className="border-primary text-primary hover:bg-primary/10"
+                    >
+                      <FolderOpen className="mr-2 h-5 w-5" />
+                      {t.qmetryExport.selectFolderButton}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-center gap-2 p-3 bg-success/10 border border-success rounded-lg">
+                      <FolderOpen className="h-5 w-5 text-success" />
+                      <span className="font-semibold text-success">
+                        {t.qmetryExport.selectedFolder}:{" "}
+                        {qmetryFolders.find((f) => f.id === selectedFolderId)?.name || "Selected"}
+                      </span>
+                    </div>
+
+                    <div className="flex justify-center">
+                      <Button
+                        onClick={handleExportToQmetry}
+                        disabled={isExporting}
+                        size="lg"
+                        className="bg-success hover:bg-success/90"
+                      >
+                        {isExporting ? (
+                          <>
+                            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                            {t.qmetryExport.exporting}
+                          </>
+                        ) : (
+                          <>
+                            <CheckCircle className="mr-2 h-5 w-5" />
+                            {t.qmetryExport.exportButton}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>
@@ -692,6 +1140,50 @@ const Index = () => {
               {t.successModal.createAnother}
             </Button>
           </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Sélection Dossier Qmetry */}
+      <Dialog open={showFolderModal} onOpenChange={setShowFolderModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t.qmetryExport.folderModalTitle}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+            <RadioGroup
+              value={selectedFolderId?.toString()}
+              onValueChange={(value) => setSelectedFolderId(Number(value))}
+            >
+              {qmetryFolders.map((folder: any) => (
+                <div
+                  key={folder.id}
+                  className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
+                >
+                  <RadioGroupItem value={folder.id.toString()} id={`folder-${folder.id}`} />
+                  <Label
+                    htmlFor={`folder-${folder.id}`}
+                    className="flex-1 cursor-pointer"
+                  >
+                    <div className="font-medium">{folder.name}</div>
+                    {folder.path && (
+                      <div className="text-sm text-muted-foreground">
+                        {folder.path}
+                      </div>
+                    )}
+                  </Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+          <DialogFooter>
+            <Button
+              onClick={() => setShowFolderModal(false)}
+              disabled={!selectedFolderId}
+              className="w-full"
+            >
+              {t.qmetryExport.confirmFolder}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>

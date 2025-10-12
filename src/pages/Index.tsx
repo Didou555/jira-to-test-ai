@@ -25,6 +25,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useLanguage, Language } from "@/contexts/LanguageContext";
 import { translations } from "@/translations";
 
+axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
+
 const API_BASE_URL = "https://superambitious-cohen-roentgenologically.ngrok-free.dev";
 
 interface StoryData {

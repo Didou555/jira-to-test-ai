@@ -99,6 +99,7 @@ const Index = () => {
   const [testCasesWithDetails, setTestCasesWithDetails] = useState<any[]>([]);
   const [qmetryFolders, setQmetryFolders] = useState<any[]>([]);
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
+  const [selectedQmetryFolder, setSelectedQmetryFolder] = useState<{id: string, name: string} | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [isLoadingFolders, setIsLoadingFolders] = useState(false);
@@ -329,6 +330,7 @@ const Index = () => {
     setTestCasesWithDetails([]);
     setQmetryFolders([]);
     setSelectedFolderId(null);
+    setSelectedQmetryFolder(null);
     setIsLoadingFolders(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -418,73 +420,81 @@ const Index = () => {
   };
 
   const handleLoadQmetryFolders = async () => {
+    setIsLoadingFolders(true);
+    
     try {
-      setIsLoadingFolders(true);
+      // Étape 1 : Ouvrir QMetry pour que l'extension capture le JWT
+      toast({
+        title: "Opening QMetry",
+        description: "Capturing authentication token...",
+      });
       
-      // 1. Ouvrir la popup QMetry pour capturer le token JWT
-      const popup = window.open(
-        'https://qaautomation-demo.atlassian.net/plugins/servlet/ac/com.infostretch.QmetryTestManager/qtm4j-test-management?project.key=KAN',
-        'qmetry-jwt-capture',
-        'width=800,height=600,left=200,top=100'
-      );
+      const qmetryUrl = 'https://qaautomation-demo.atlassian.net/plugins/servlet/ac/com.infostretch.QmetryTestManager/qtm4j-test-management';
+      const popup = window.open(qmetryUrl, 'qmetry-auth', 'width=800,height=600');
       
       if (!popup) {
-        throw new Error('Popup bloquée. Veuillez autoriser les popups pour ce site.');
+        throw new Error("Popup blocked. Please allow popups for this site.");
       }
-      
-      // 2. Attendre que l'extension capture le token (3 secondes)
+
+      // Étape 2 : Attendre que l'extension capture le JWT (3 secondes)
       await new Promise(resolve => setTimeout(resolve, 3000));
       
-      // 3. Fermer la popup automatiquement
+      // Étape 3 : Fermer la popup
       popup.close();
-      
-      // 4. Appeler n8n pour récupérer les dossiers avec JWT
-      const response = await fetch(
-        `${API_BASE_URL}/webhook/qmetry-folders-jwt`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'ngrok-skip-browser-warning': 'true'
-          },
-          body: JSON.stringify({
-            jwtToken: 'AUTO', // L'extension injectera le token automatiquement
-            projectKey: 'KAN'
-          })
-        }
-      );
-      
+
+      // Étape 4 : Écouter le token envoyé par l'extension via postMessage
+      const token = await new Promise<string>((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          window.removeEventListener('message', messageHandler);
+          reject(new Error("Timeout: JWT token not received from extension. Make sure the extension is installed."));
+        }, 5000);
+
+        const messageHandler = (event: MessageEvent) => {
+          // Vérifier que c'est bien notre extension qui envoie le message
+          if (event.data.type === 'QMETRY_JWT_TOKEN' && event.data.source === 'qmetry-jwt-extractor') {
+            console.log('✅ JWT token received from extension');
+            clearTimeout(timeout);
+            window.removeEventListener('message', messageHandler);
+            resolve(event.data.token);
+          }
+        };
+        
+        window.addEventListener('message', messageHandler);
+      });
+
+      // Étape 5 : Appeler le webhook n8n pour récupérer les dossiers
+      const response = await fetch(`${API_BASE_URL}/webhook/qmetry-folders-jwt`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
+        body: JSON.stringify({ 
+          jwtToken: token,
+          action: 'list_folders'
+        }),
+      });
+
       if (!response.ok) {
-        throw new Error('Erreur lors de la récupération des dossiers');
+        throw new Error(`HTTP Error: ${response.status}`);
       }
-      
+
       const data = await response.json();
       
-      // 5. Vérifier si le token est expiré
-      if (data.tokenExpired) {
-        toast({
-          title: "Token expiré",
-          description: "Veuillez réessayer. Le token JWT a expiré.",
-          variant: "destructive",
-        });
-        setIsLoadingFolders(false);
-        return;
-      }
-      
-      // 6. Afficher les dossiers dans la modale
-      if (data.success && data.folders && data.folders.length > 0) {
+      // Étape 6 : Afficher les dossiers dans une modale
+      if (data.folders && Array.isArray(data.folders)) {
         setQmetryFolders(data.folders);
         setShowFolderModal(true);
         toast({
           title: t.toasts.foldersLoaded,
-          description: `${data.totalFolders || data.folders.length} ${t.toasts.foldersLoadedDesc}`,
+          description: `${data.folders.length} ${t.toasts.foldersLoadedDesc}`,
         });
       } else {
-        throw new Error('Aucun dossier trouvé');
+        throw new Error("Invalid response format from n8n webhook");
       }
-      
+
     } catch (error: any) {
-      console.error('Erreur lors du chargement des dossiers:', error);
+      console.error('Error loading QMetry folders:', error);
       toast({
         title: t.toasts.errorLoadingFolders,
         description: error.message || t.toasts.errorLoadingFoldersDesc,
@@ -1117,7 +1127,7 @@ const Index = () => {
                       <FolderOpen className="h-5 w-5 text-success" />
                       <span className="font-semibold text-success">
                         {t.qmetryExport.selectedFolder}:{" "}
-                        {qmetryFolders.find((f) => f.id === selectedFolderId)?.name || "Selected"}
+                        {selectedQmetryFolder?.name || qmetryFolders.find((f) => f.id === selectedFolderId)?.name || "Selected"}
                       </span>
                     </div>
 
@@ -1223,7 +1233,14 @@ const Index = () => {
           <div className="space-y-3 max-h-[400px] overflow-y-auto">
             <RadioGroup
               value={selectedFolderId?.toString()}
-              onValueChange={(value) => setSelectedFolderId(Number(value))}
+              onValueChange={(value) => {
+                const folderId = Number(value);
+                const folder = qmetryFolders.find((f: any) => f.id === folderId);
+                setSelectedFolderId(folderId);
+                if (folder) {
+                  setSelectedQmetryFolder({ id: folder.id.toString(), name: folder.name });
+                }
+              }}
             >
               {qmetryFolders.map((folder: any) => (
                 <div
@@ -1248,7 +1265,15 @@ const Index = () => {
           </div>
           <DialogFooter>
             <Button
-              onClick={() => setShowFolderModal(false)}
+              onClick={() => {
+                setShowFolderModal(false);
+                if (selectedQmetryFolder) {
+                  toast({
+                    title: "Folder selected",
+                    description: selectedQmetryFolder.name,
+                  });
+                }
+              }}
               disabled={!selectedFolderId}
               className="w-full"
             >

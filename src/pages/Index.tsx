@@ -101,6 +101,7 @@ const Index = () => {
   const [selectedFolderId, setSelectedFolderId] = useState<number | null>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
+  const [isLoadingFolders, setIsLoadingFolders] = useState(false);
   const { toast } = useToast();
 
   const getLanguageName = (lang: Language) => {
@@ -328,6 +329,7 @@ const Index = () => {
     setTestCasesWithDetails([]);
     setQmetryFolders([]);
     setSelectedFolderId(null);
+    setIsLoadingFolders(false);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -417,22 +419,79 @@ const Index = () => {
 
   const handleLoadQmetryFolders = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/webhook/qmetry-folders`);
-
-      setQmetryFolders(response.data.folders || []);
-      setShowFolderModal(true);
-
-      toast({
-        title: t.toasts.foldersLoaded,
-        description: t.toasts.foldersLoadedDesc.replace("{count}", String(response.data.folders?.length || 0)),
-      });
-    } catch (error) {
-      console.error("Error loading folders:", error);
+      setIsLoadingFolders(true);
+      
+      // 1. Ouvrir la popup QMetry pour capturer le token JWT
+      const popup = window.open(
+        'https://qaautomation-demo.atlassian.net/plugins/servlet/ac/com.infostretch.QmetryTestManager/qtm4j-test-management?project.key=KAN',
+        'qmetry-jwt-capture',
+        'width=800,height=600,left=200,top=100'
+      );
+      
+      if (!popup) {
+        throw new Error('Popup bloquée. Veuillez autoriser les popups pour ce site.');
+      }
+      
+      // 2. Attendre que l'extension capture le token (3 secondes)
+      await new Promise(resolve => setTimeout(resolve, 3000));
+      
+      // 3. Fermer la popup automatiquement
+      popup.close();
+      
+      // 4. Appeler n8n pour récupérer les dossiers avec JWT
+      const response = await fetch(
+        `${API_BASE_URL}/webhook/qmetry-folders-jwt`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
+          body: JSON.stringify({
+            jwtToken: 'AUTO', // L'extension injectera le token automatiquement
+            projectKey: 'KAN'
+          })
+        }
+      );
+      
+      if (!response.ok) {
+        throw new Error('Erreur lors de la récupération des dossiers');
+      }
+      
+      const data = await response.json();
+      
+      // 5. Vérifier si le token est expiré
+      if (data.tokenExpired) {
+        toast({
+          title: "Token expiré",
+          description: "Veuillez réessayer. Le token JWT a expiré.",
+          variant: "destructive",
+        });
+        setIsLoadingFolders(false);
+        return;
+      }
+      
+      // 6. Afficher les dossiers dans la modale
+      if (data.success && data.folders && data.folders.length > 0) {
+        setQmetryFolders(data.folders);
+        setShowFolderModal(true);
+        toast({
+          title: t.toasts.foldersLoaded,
+          description: `${data.totalFolders || data.folders.length} ${t.toasts.foldersLoadedDesc}`,
+        });
+      } else {
+        throw new Error('Aucun dossier trouvé');
+      }
+      
+    } catch (error: any) {
+      console.error('Erreur lors du chargement des dossiers:', error);
       toast({
         title: t.toasts.errorLoadingFolders,
-        description: t.toasts.errorLoadingFoldersDesc,
+        description: error.message || t.toasts.errorLoadingFoldersDesc,
         variant: "destructive",
       });
+    } finally {
+      setIsLoadingFolders(false);
     }
   };
 
@@ -1037,9 +1096,19 @@ const Index = () => {
                       size="lg"
                       variant="outline"
                       className="border-primary text-primary hover:bg-primary/10"
+                      disabled={isLoadingFolders}
                     >
-                      <FolderOpen className="mr-2 h-5 w-5" />
-                      {t.qmetryExport.selectFolderButton}
+                      {isLoadingFolders ? (
+                        <>
+                          <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                          Chargement...
+                        </>
+                      ) : (
+                        <>
+                          <FolderOpen className="mr-2 h-5 w-5" />
+                          {t.qmetryExport.selectFolderButton}
+                        </>
+                      )}
                     </Button>
                   </div>
                 ) : (

@@ -423,114 +423,87 @@ const Index = () => {
     setIsLoadingFolders(true);
     
     try {
-      // ID de l'extension QMetry JWT Token Extractor
-      const extensionId = 'haakloaknhccnfjjacdjhikognnmhgjg';
+      // 1. Générer un identifiant de session unique
+      const sessionId = crypto.randomUUID();
       
       toast({
         title: "Opening QMetry",
-        description: "Please wait while we capture your authentication...",
+        description: "Capturing authentication...",
       });
       
-      // Ouvrir QMetry
-      const qmetryUrl = 'https://qaautomation-demo.atlassian.net/plugins/servlet/ac/com.infostretch.QmetryTestManager/qtm4j-test-management';
+      // 2. Ouvrir QMetry avec le sessionId dans l'URL
+      const qmetryUrl = `https://qaautomation-demo.atlassian.net/plugins/servlet/ac/com.infostretch.QmetryTestManager/qtm4j-test-management?session=${sessionId}`;
       const popup = window.open(qmetryUrl, 'qmetry-auth', 'width=800,height=600');
       
       if (!popup) {
         throw new Error("Popup blocked. Please allow popups for this site.");
       }
 
-      // Attendre que QMetry charge et que l'extension capture le token (7 secondes)
-      await new Promise(resolve => setTimeout(resolve, 7000));
+      // 3. Attendre 10 secondes pour que l'extension capture le token
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      popup.close();
+      
+      toast({
+        title: "Token captured",
+        description: "Loading folders from QMetry...",
+      });
 
-      // Demander le token directement à l'extension via chrome.runtime
-      let token: string | null = null;
+      // 4. Polling : vérifier toutes les 2 secondes si les dossiers sont prêts
+      const n8nCheckUrl = 'https://superambitious-cohen-roentgenologically.ngrok-free.dev/webhook/qmetry-check-status';
+      
+      let folders = null;
       let attempts = 0;
-      const maxAttempts = 8;
+      const maxAttempts = 15; // 30 secondes max (15 x 2 sec)
 
-      while (!token && attempts < maxAttempts) {
+      while (!folders && attempts < maxAttempts) {
         try {
-          const chromeApi = (window as any).chrome;
-          if (typeof chromeApi !== 'undefined' && chromeApi.runtime && chromeApi.runtime.sendMessage) {
-            const response = await new Promise<any>((resolve, reject) => {
-              const timeout = setTimeout(() => reject(new Error('Timeout')), 2000);
-              
-              chromeApi.runtime.sendMessage(
-                extensionId,
-                { type: 'GET_JWT' },
-                (response: any) => {
-                  clearTimeout(timeout);
-                  if (chromeApi.runtime.lastError) {
-                    reject(chromeApi.runtime.lastError);
-                  } else {
-                    resolve(response);
-                  }
-                }
-              );
-            });
+          const response = await fetch(n8nCheckUrl, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ sessionId }),
+          });
 
-            if (response && response.success && response.token) {
-              token = response.token;
-              console.log('✅ JWT token received from extension');
-              
-              popup.close();
-              
-              toast({
-                title: "Token received",
-                description: "Loading QMetry folders...",
-              });
-              break;
-            }
+          const data = await response.json();
+          
+          if (data.ready && data.folders) {
+            folders = data.folders;
+            console.log('✅ Folders received:', folders);
+            break;
+          } else {
+            console.log(`⏳ Attempt ${attempts + 1}: Still waiting...`);
           }
         } catch (error) {
-          console.log(`Attempt ${attempts + 1} failed, retrying...`);
+          console.error('Error checking status:', error);
         }
 
         attempts++;
-        if (!token && attempts < maxAttempts) {
+        
+        // Attendre 2 secondes avant le prochain essai
+        if (!folders && attempts < maxAttempts) {
           await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
 
-      if (!token) {
-        popup.close();
-        throw new Error("Could not retrieve JWT token from extension. Please make sure:\n1. The extension is installed\n2. You're logged into QMetry\n3. The QMetry page loaded completely");
+      if (!folders) {
+        throw new Error("Timeout: Could not retrieve folders from QMetry. Please try again.");
       }
 
-      // Appeler n8n avec le token
-      const response = await fetch(`${API_BASE_URL}/webhook/qmetry-folders-jwt`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-        body: JSON.stringify({ 
-          jwtToken: token,
-          action: 'list_folders'
-        }),
+      // 5. Afficher les dossiers
+      setQmetryFolders(folders);
+      setShowFolderModal(true);
+      
+      toast({
+        title: "Folders loaded",
+        description: `${folders.length} folder(s) available`,
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP Error: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.folders && Array.isArray(data.folders)) {
-        setQmetryFolders(data.folders);
-        setShowFolderModal(true);
-        toast({
-          title: t.toasts.foldersLoaded,
-          description: `${data.folders.length} ${t.toasts.foldersLoadedDesc}`,
-        });
-      } else {
-        throw new Error("Invalid response format from n8n webhook");
-      }
-
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error loading QMetry folders:', error);
       toast({
-        title: t.toasts.errorLoadingFolders,
-        description: error.message || t.toasts.errorLoadingFoldersDesc,
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to load QMetry folders",
         variant: "destructive",
       });
     } finally {

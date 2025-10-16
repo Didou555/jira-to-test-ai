@@ -461,9 +461,17 @@ const Index = () => {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
+              'ngrok-skip-browser-warning': 'true'  // IMPORTANT : pour éviter la page d'avertissement ngrok
             },
             body: JSON.stringify({ sessionId }),
           });
+
+          if (!response.ok) {
+            console.error(`HTTP error! status: ${response.status}`);
+            attempts++;
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            continue;
+          }
 
           const data = await response.json();
           

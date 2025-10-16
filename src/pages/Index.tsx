@@ -426,7 +426,7 @@ const Index = () => {
       // Étape 1 : Ouvrir QMetry pour que l'extension capture le JWT
       toast({
         title: "Opening QMetry",
-        description: "Capturing authentication token...",
+        description: "Waiting for authentication token...",
       });
       
       const qmetryUrl = 'https://qaautomation-demo.atlassian.net/plugins/servlet/ac/com.infostretch.QmetryTestManager/qtm4j-test-management';
@@ -436,18 +436,13 @@ const Index = () => {
         throw new Error("Popup blocked. Please allow popups for this site.");
       }
 
-      // Étape 2 : Attendre que l'extension capture le JWT (3 secondes)
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Étape 3 : Fermer la popup
-      popup.close();
-
-      // Étape 4 : Écouter le token envoyé par l'extension via postMessage
+      // Étape 2 : Écouter le token envoyé par l'extension via postMessage
       const token = await new Promise<string>((resolve, reject) => {
         const timeout = setTimeout(() => {
+          popup.close(); // Fermer en cas de timeout
           window.removeEventListener('message', messageHandler);
-          reject(new Error("Timeout: JWT token not received from extension. Make sure the extension is installed."));
-        }, 5000);
+          reject(new Error("Timeout: JWT token not received from extension after 30 seconds. Make sure the extension is installed."));
+        }, 30000); // 30 secondes max
 
         const messageHandler = (event: MessageEvent) => {
           // Vérifier que c'est bien notre extension qui envoie le message
@@ -455,6 +450,16 @@ const Index = () => {
             console.log('✅ JWT token received from extension');
             clearTimeout(timeout);
             window.removeEventListener('message', messageHandler);
+            
+            // IMPORTANT : Fermer la popup dès que le token est reçu
+            popup.close();
+            
+            // Toast pour indiquer que le token est reçu
+            toast({
+              title: "Token received",
+              description: "Loading folders...",
+            });
+            
             resolve(event.data.token);
           }
         };

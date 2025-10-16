@@ -423,11 +423,15 @@ const Index = () => {
     setIsLoadingFolders(true);
     
     try {
+      // ID de l'extension QMetry JWT Token Extractor
+      const extensionId = 'haakloaknhccnfjjacdjhikognnmhgjg';
+      
       toast({
         title: "Opening QMetry",
-        description: "Waiting for authentication token...",
+        description: "Please wait while we capture your authentication...",
       });
       
+      // Ouvrir QMetry
       const qmetryUrl = 'https://qaautomation-demo.atlassian.net/plugins/servlet/ac/com.infostretch.QmetryTestManager/qtm4j-test-management';
       const popup = window.open(qmetryUrl, 'qmetry-auth', 'width=800,height=600');
       
@@ -435,57 +439,61 @@ const Index = () => {
         throw new Error("Popup blocked. Please allow popups for this site.");
       }
 
-      // Attendre 5 secondes pour que QMetry charge et que l'extension capture le token
-      await new Promise(resolve => setTimeout(resolve, 5000));
+      // Attendre que QMetry charge et que l'extension capture le token (7 secondes)
+      await new Promise(resolve => setTimeout(resolve, 7000));
 
-      // Demander le token à l'extension
+      // Demander le token directement à l'extension via chrome.runtime
       let token: string | null = null;
       let attempts = 0;
-      const maxAttempts = 10;
+      const maxAttempts = 8;
 
       while (!token && attempts < maxAttempts) {
         try {
-          // Envoyer un message à l'extension pour demander le token
-          window.postMessage({ type: 'REQUEST_JWT_TOKEN' }, '*');
-
-          // Attendre la réponse
-          token = await new Promise<string | null>((resolve) => {
-            const timeout = setTimeout(() => resolve(null), 2000);
-
-            const messageHandler = (event: MessageEvent) => {
-              if (event.data.type === 'QMETRY_JWT_TOKEN_RESPONSE' && 
-                  event.data.source === 'qmetry-jwt-extractor' && 
-                  event.data.success) {
-                clearTimeout(timeout);
-                window.removeEventListener('message', messageHandler);
-                resolve(event.data.token);
-              }
-            };
-
-            window.addEventListener('message', messageHandler);
-          });
-
-          if (token) {
-            console.log('✅ JWT token received from extension');
-            popup.close();
-            
-            toast({
-              title: "Token received",
-              description: "Loading folders...",
+          const chromeApi = (window as any).chrome;
+          if (typeof chromeApi !== 'undefined' && chromeApi.runtime && chromeApi.runtime.sendMessage) {
+            const response = await new Promise<any>((resolve, reject) => {
+              const timeout = setTimeout(() => reject(new Error('Timeout')), 2000);
+              
+              chromeApi.runtime.sendMessage(
+                extensionId,
+                { type: 'GET_JWT' },
+                (response: any) => {
+                  clearTimeout(timeout);
+                  if (chromeApi.runtime.lastError) {
+                    reject(chromeApi.runtime.lastError);
+                  } else {
+                    resolve(response);
+                  }
+                }
+              );
             });
-            break;
-          }
 
-          attempts++;
-          await new Promise(resolve => setTimeout(resolve, 1000));
+            if (response && response.success && response.token) {
+              token = response.token;
+              console.log('✅ JWT token received from extension');
+              
+              popup.close();
+              
+              toast({
+                title: "Token received",
+                description: "Loading QMetry folders...",
+              });
+              break;
+            }
+          }
         } catch (error) {
-          attempts++;
+          console.log(`Attempt ${attempts + 1} failed, retrying...`);
+        }
+
+        attempts++;
+        if (!token && attempts < maxAttempts) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
         }
       }
 
       if (!token) {
         popup.close();
-        throw new Error("Failed to retrieve JWT token from extension. Make sure the extension is installed and you're logged into QMetry.");
+        throw new Error("Could not retrieve JWT token from extension. Please make sure:\n1. The extension is installed\n2. You're logged into QMetry\n3. The QMetry page loaded completely");
       }
 
       // Appeler n8n avec le token

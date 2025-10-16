@@ -423,7 +423,6 @@ const Index = () => {
     setIsLoadingFolders(true);
     
     try {
-      // Étape 1 : Ouvrir QMetry pour que l'extension capture le JWT
       toast({
         title: "Opening QMetry",
         description: "Waiting for authentication token...",
@@ -436,38 +435,60 @@ const Index = () => {
         throw new Error("Popup blocked. Please allow popups for this site.");
       }
 
-      // Étape 2 : Écouter le token envoyé par l'extension via postMessage
-      const token = await new Promise<string>((resolve, reject) => {
-        const timeout = setTimeout(() => {
-          popup.close(); // Fermer en cas de timeout
-          window.removeEventListener('message', messageHandler);
-          reject(new Error("Timeout: JWT token not received from extension after 30 seconds. Make sure the extension is installed."));
-        }, 30000); // 30 secondes max
+      // Attendre 5 secondes pour que QMetry charge et que l'extension capture le token
+      await new Promise(resolve => setTimeout(resolve, 5000));
 
-        const messageHandler = (event: MessageEvent) => {
-          // Vérifier que c'est bien notre extension qui envoie le message
-          if (event.data.type === 'QMETRY_JWT_TOKEN' && event.data.source === 'qmetry-jwt-extractor') {
+      // Demander le token à l'extension
+      let token: string | null = null;
+      let attempts = 0;
+      const maxAttempts = 10;
+
+      while (!token && attempts < maxAttempts) {
+        try {
+          // Envoyer un message à l'extension pour demander le token
+          window.postMessage({ type: 'REQUEST_JWT_TOKEN' }, '*');
+
+          // Attendre la réponse
+          token = await new Promise<string | null>((resolve) => {
+            const timeout = setTimeout(() => resolve(null), 2000);
+
+            const messageHandler = (event: MessageEvent) => {
+              if (event.data.type === 'QMETRY_JWT_TOKEN_RESPONSE' && 
+                  event.data.source === 'qmetry-jwt-extractor' && 
+                  event.data.success) {
+                clearTimeout(timeout);
+                window.removeEventListener('message', messageHandler);
+                resolve(event.data.token);
+              }
+            };
+
+            window.addEventListener('message', messageHandler);
+          });
+
+          if (token) {
             console.log('✅ JWT token received from extension');
-            clearTimeout(timeout);
-            window.removeEventListener('message', messageHandler);
-            
-            // IMPORTANT : Fermer la popup dès que le token est reçu
             popup.close();
             
-            // Toast pour indiquer que le token est reçu
             toast({
               title: "Token received",
               description: "Loading folders...",
             });
-            
-            resolve(event.data.token);
+            break;
           }
-        };
-        
-        window.addEventListener('message', messageHandler);
-      });
 
-      // Étape 5 : Appeler le webhook n8n pour récupérer les dossiers
+          attempts++;
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        } catch (error) {
+          attempts++;
+        }
+      }
+
+      if (!token) {
+        popup.close();
+        throw new Error("Failed to retrieve JWT token from extension. Make sure the extension is installed and you're logged into QMetry.");
+      }
+
+      // Appeler n8n avec le token
       const response = await fetch(`${API_BASE_URL}/webhook/qmetry-folders-jwt`, {
         method: 'POST',
         headers: {
@@ -486,7 +507,6 @@ const Index = () => {
 
       const data = await response.json();
       
-      // Étape 6 : Afficher les dossiers dans une modale
       if (data.folders && Array.isArray(data.folders)) {
         setQmetryFolders(data.folders);
         setShowFolderModal(true);

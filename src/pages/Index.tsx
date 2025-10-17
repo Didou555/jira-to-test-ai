@@ -448,55 +448,51 @@ const Index = () => {
         description: "Loading folders from QMetry...",
       });
 
-      // 4. Polling : vérifier toutes les 2 secondes si les dossiers sont prêts
-      const n8nCheckUrl = 'https://superambitious-cohen-roentgenologically.ngrok-free.dev/webhook/qmetry-check-status';
-      
-      let folders = null;
-      let attempts = 0;
-      const maxAttempts = 15; // 30 secondes max (15 x 2 sec)
+    // 4. Attendre que le serveur n8n envoie les dossiers (timeout: 30 secondes)
+    const n8nCheckUrl = 'https://superambitious-cohen-roentgenologically.ngrok-free.dev/webhook/qmetry-check-status';
+    
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes timeout
 
-      while (!folders && attempts < maxAttempts) {
-        try {
-          const response = await fetch(n8nCheckUrl, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'ngrok-skip-browser-warning': 'true'  // IMPORTANT : pour éviter la page d'avertissement ngrok
-            },
-            body: JSON.stringify({ sessionId }),
-          });
+    let folders = null;
 
-          if (!response.ok) {
-            console.error(`HTTP error! status: ${response.status}`);
-            attempts++;
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            continue;
-          }
+    try {
+      const response = await fetch(n8nCheckUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
+        body: JSON.stringify({ sessionId }),
+        signal: controller.signal
+      });
 
-          const data = await response.json();
-          
-          if (data.ready && data.folders) {
-            folders = data.folders;
-            console.log('✅ Folders received:', folders);
-            break;
-          } else {
-            console.log(`⏳ Attempt ${attempts + 1}: Still waiting...`);
-          }
-        } catch (error) {
-          console.error('Error checking status:', error);
-        }
+      clearTimeout(timeoutId);
 
-        attempts++;
-        
-        // Attendre 2 secondes avant le prochain essai
-        if (!folders && attempts < maxAttempts) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
-        }
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
 
-      if (!folders) {
+      const data = await response.json();
+      
+      if (data.folders) {
+        folders = data.folders;
+        console.log('✅ Folders received:', folders);
+      } else {
+        throw new Error("Invalid response format from server");
+      }
+    } catch (error) {
+      clearTimeout(timeoutId);
+      
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new Error("Timeout: Could not retrieve folders from QMetry. Please try again.");
       }
+      throw error;
+    }
+
+    if (!folders) {
+      throw new Error("Timeout: Could not retrieve folders from QMetry. Please try again.");
+    }
 
       // 5. Afficher les dossiers
       setQmetryFolders(folders);

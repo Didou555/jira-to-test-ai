@@ -423,38 +423,99 @@ const Index = () => {
     setIsLoadingFolders(true);
     
     try {
-      // 1. Générer un identifiant de session unique
-      const sessionId = crypto.randomUUID();
-      
       toast({
         title: "Opening QMetry",
         description: "Capturing authentication...",
       });
       
-      // 2. Ouvrir QMetry avec le sessionId dans l'URL
-      const qmetryUrl = `https://qaautomation-demo.atlassian.net/plugins/servlet/ac/com.infostretch.QmetryTestManager/qtm4j-test-management?session=${sessionId}`;
+      // 1. Ouvrir QMetry pour que l'extension capture le token
+      const qmetryUrl = `https://qaautomation-demo.atlassian.net/plugins/servlet/ac/com.infostretch.QmetryTestManager/qtm4j-test-management`;
       const popup = window.open(qmetryUrl, 'qmetry-auth', 'width=800,height=600');
       
       if (!popup) {
         throw new Error("Popup blocked. Please allow popups for this site.");
       }
 
-      // 3. Attendre 10 secondes pour que l'extension capture le token
+      // 2. Attendre 10 secondes pour que l'extension capture le token
       await new Promise(resolve => setTimeout(resolve, 10000));
       popup.close();
       
       toast({
-        title: "Token captured",
-        description: "Loading folders from QMetry...",
+        title: "Retrieving token",
+        description: "Getting JWT token from extension...",
       });
 
-    // 4. Les dossiers seront reçus du serveur n8n via un autre mécanisme
-    console.log('Session ID:', sessionId);
-    
-    toast({
-      title: "Waiting for folders",
-      description: "The server will send the folders list...",
-    });
+      // 3. Récupérer le JWT token depuis l'extension Chrome
+      const extensionId = 'haakloaknhccnfjjacdjhikognnmhgjg';
+      
+      let jwtToken: string | null = null;
+      
+      try {
+        // @ts-ignore - Chrome extension API
+        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
+          const response = await new Promise<any>((resolve, reject) => {
+            // @ts-ignore
+            chrome.runtime.sendMessage(
+              extensionId,
+              { action: 'getJwtToken' },
+              (response: any) => {
+                // @ts-ignore
+                if (chrome.runtime.lastError) {
+                  // @ts-ignore
+                  reject(new Error(chrome.runtime.lastError.message));
+                } else {
+                  resolve(response);
+                }
+              }
+            );
+          });
+          
+          jwtToken = response?.jwtToken;
+          
+          if (!jwtToken) {
+            throw new Error("No JWT token received from extension");
+          }
+        } else {
+          throw new Error("Chrome extension API not available");
+        }
+      } catch (extError) {
+        console.error('Error communicating with extension:', extError);
+        throw new Error(`Failed to get token from extension: ${extError instanceof Error ? extError.message : 'Unknown error'}`);
+      }
+
+      toast({
+        title: "Token retrieved",
+        description: "Fetching folders from QMetry...",
+      });
+
+      // 4. Envoyer le JWT token au webhook n8n pour récupérer les dossiers
+      const response = await axios.post(
+        `${API_BASE_URL}/webhook/qmetry-folders-jwt`,
+        { jwtToken },
+        {
+          headers: {
+            'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true'
+          },
+          timeout: 30000 // 30 secondes timeout
+        }
+      );
+
+      if (!response.data.folders || !Array.isArray(response.data.folders)) {
+        throw new Error("Invalid response format from server");
+      }
+
+      const folders = response.data.folders;
+      console.log('✅ Folders received:', folders);
+
+      // 5. Afficher les dossiers
+      setQmetryFolders(folders);
+      setShowFolderModal(true);
+      
+      toast({
+        title: "Folders loaded",
+        description: `${folders.length} folder(s) available`,
+      });
 
     } catch (error) {
       console.error('Error loading QMetry folders:', error);

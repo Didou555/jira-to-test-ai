@@ -103,6 +103,8 @@ const Index = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [isLoadingFolders, setIsLoadingFolders] = useState(false);
+  const [showJwtModal, setShowJwtModal] = useState(false);
+  const [jwtToken, setJwtToken] = useState<string>("");
   const { toast } = useToast();
 
   const getLanguageName = (lang: Language) => {
@@ -420,8 +422,6 @@ const Index = () => {
   };
 
   const handleLoadQmetryFolders = async () => {
-    setIsLoadingFolders(true);
-    
     try {
       toast({
         title: "Opening QMetry",
@@ -440,55 +440,29 @@ const Index = () => {
       await new Promise(resolve => setTimeout(resolve, 10000));
       popup.close();
       
+      // 3. Ouvrir la modal pour insérer manuellement le JWT token
+      setShowJwtModal(true);
+
+    } catch (error) {
+      console.error('Error opening QMetry:', error);
       toast({
-        title: "Retrieving token",
-        description: "Getting JWT token from extension...",
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to open QMetry",
+        variant: "destructive",
       });
+    }
+  };
 
-      // 3. Récupérer le JWT token depuis l'extension Chrome
-      const extensionId = 'haakloaknhccnfjjacdjhikognnmhgjg';
-      
-      let jwtToken: string | null = null;
-      
-      try {
-        // @ts-ignore - Chrome extension API
-        if (typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.sendMessage) {
-          const response = await new Promise<any>((resolve, reject) => {
-            // @ts-ignore
-            chrome.runtime.sendMessage(
-              extensionId,
-              { action: 'getJwtToken' },
-              (response: any) => {
-                // @ts-ignore
-                if (chrome.runtime.lastError) {
-                  // @ts-ignore
-                  reject(new Error(chrome.runtime.lastError.message));
-                } else {
-                  resolve(response);
-                }
-              }
-            );
-          });
-          
-          jwtToken = response?.jwtToken;
-          
-          if (!jwtToken) {
-            throw new Error("No JWT token received from extension");
-          }
-        } else {
-          throw new Error("Chrome extension API not available");
-        }
-      } catch (extError) {
-        console.error('Error communicating with extension:', extError);
-        throw new Error(`Failed to get token from extension: ${extError instanceof Error ? extError.message : 'Unknown error'}`);
-      }
-
+  const handleSendJwtToken = async () => {
+    setIsLoadingFolders(true);
+    
+    try {
       toast({
         title: "Token retrieved",
         description: "Fetching folders from QMetry...",
       });
 
-      // 4. Envoyer le JWT token au webhook n8n pour récupérer les dossiers
+      // Envoyer le JWT token au webhook n8n pour récupérer les dossiers
       const response = await axios.post(
         `${API_BASE_URL}/webhook/qmetry-folders-jwt`,
         { jwtToken },
@@ -508,7 +482,9 @@ const Index = () => {
       const folders = response.data.folders;
       console.log('✅ Folders received:', folders);
 
-      // 5. Afficher les dossiers
+      // Fermer la modal JWT et afficher les dossiers
+      setShowJwtModal(false);
+      setJwtToken("");
       setQmetryFolders(folders);
       setShowFolderModal(true);
       
@@ -1243,6 +1219,35 @@ const Index = () => {
               className="w-full"
             >
               {t.successModal.createAnother}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Modal: Insertion JWT Token */}
+      <Dialog open={showJwtModal} onOpenChange={setShowJwtModal}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Insert JWT Token</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="jwt-token">JWT Token</Label>
+              <Input
+                id="jwt-token"
+                type="text"
+                placeholder="Paste your JWT token here..."
+                value={jwtToken}
+                onChange={(e) => setJwtToken(e.target.value)}
+                className="font-mono text-sm"
+              />
+            </div>
+            <Button
+              onClick={handleSendJwtToken}
+              disabled={!jwtToken.trim() || isLoadingFolders}
+              className="w-full"
+            >
+              {isLoadingFolders ? "Loading..." : "Envoyer au serveur"}
             </Button>
           </div>
         </DialogContent>

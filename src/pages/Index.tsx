@@ -448,60 +448,13 @@ const Index = () => {
         description: "Loading folders from QMetry...",
       });
 
-    // 4. Attendre que le serveur n8n envoie les dossiers (timeout: 30 secondes)
-    const n8nCheckUrl = 'https://superambitious-cohen-roentgenologically.ngrok-free.dev/webhook/qmetry-check-status';
+    // 4. Les dossiers seront reçus du serveur n8n via un autre mécanisme
+    console.log('Session ID:', sessionId);
     
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes timeout
-
-    let folders = null;
-
-    try {
-      const response = await fetch(n8nCheckUrl, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'ngrok-skip-browser-warning': 'true'
-        },
-        body: JSON.stringify({ sessionId }),
-        signal: controller.signal
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
-      const data = await response.json();
-      
-      if (data.folders) {
-        folders = data.folders;
-        console.log('✅ Folders received:', folders);
-      } else {
-        throw new Error("Invalid response format from server");
-      }
-    } catch (error) {
-      clearTimeout(timeoutId);
-      
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error("Timeout: Could not retrieve folders from QMetry. Please try again.");
-      }
-      throw error;
-    }
-
-    if (!folders) {
-      throw new Error("Timeout: Could not retrieve folders from QMetry. Please try again.");
-    }
-
-      // 5. Afficher les dossiers
-      setQmetryFolders(folders);
-      setShowFolderModal(true);
-      
-      toast({
-        title: "Folders loaded",
-        description: `${folders.length} folder(s) available`,
-      });
+    toast({
+      title: "Waiting for folders",
+      description: "The server will send the folders list...",
+    });
 
     } catch (error) {
       console.error('Error loading QMetry folders:', error);

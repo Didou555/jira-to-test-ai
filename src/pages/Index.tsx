@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { StatCard } from "@/components/StatCard";
 import { TimelineStep } from "@/components/TimelineStep";
+import { FolderTree } from "@/components/FolderTree";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage, Language } from "@/contexts/LanguageContext";
 import { translations } from "@/translations";
@@ -1192,37 +1193,38 @@ const Index = () => {
           <DialogHeader>
             <DialogTitle>{t.qmetryExport.folderModalTitle}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 max-h-[400px] overflow-y-auto">
+          <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
             <RadioGroup
               value={selectedFolderId?.toString()}
               onValueChange={(value) => {
                 const folderId = Number(value);
-                const folder = qmetryFolders.find((f: any) => f.id === folderId);
+                // Fonction récursive pour trouver le dossier dans l'arbre
+                const findFolder = (folders: any[], id: number): any => {
+                  for (const folder of folders) {
+                    if (folder.id === id) return folder;
+                    if (folder.children) {
+                      const found = findFolder(folder.children, id);
+                      if (found) return found;
+                    }
+                  }
+                  return null;
+                };
+                
+                const folder = findFolder(qmetryFolders, folderId);
                 setSelectedFolderId(folderId);
                 if (folder) {
                   setSelectedQmetryFolder({ id: folder.id.toString(), name: folder.name });
                 }
               }}
             >
-              {qmetryFolders.map((folder: any) => (
-                <div
-                  key={folder.id}
-                  className="flex items-center space-x-3 p-3 border rounded-lg hover:bg-muted/50 transition-colors"
-                >
-                  <RadioGroupItem value={folder.id.toString()} id={`folder-${folder.id}`} />
-                  <Label
-                    htmlFor={`folder-${folder.id}`}
-                    className="flex-1 cursor-pointer"
-                  >
-                    <div className="font-medium">{folder.name}</div>
-                    {folder.path && (
-                      <div className="text-sm text-muted-foreground">
-                        {folder.path}
-                      </div>
-                    )}
-                  </Label>
-                </div>
-              ))}
+              <FolderTree
+                folders={qmetryFolders}
+                selectedFolderId={selectedFolderId}
+                onSelectFolder={(folderId, folderName) => {
+                  setSelectedFolderId(folderId);
+                  setSelectedQmetryFolder({ id: folderId.toString(), name: folderName });
+                }}
+              />
             </RadioGroup>
           </div>
           <DialogFooter>

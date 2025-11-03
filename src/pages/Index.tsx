@@ -603,7 +603,7 @@ const Index = () => {
             <Button
               onClick={handleGenerate}
               disabled={isGenerating || isCheckingExisting || !jiraUrl.trim()}
-              className="w-full h-12 bg-warning hover:bg-warning/90 text-warning-foreground"
+              className="w-full h-12"
               size="lg"
             >
               {isCheckingExisting ? (

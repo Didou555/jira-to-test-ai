@@ -28,7 +28,15 @@ import { translations } from "@/translations";
 
 axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
 
-const API_BASE_URL = "https://superambitious-cohen-roentgenologically.ngrok-free.dev";
+// Allow overriding the backend base URL via Vite env var
+// Example: set VITE_API_BASE_URL in .env to your n8n base URL
+const API_BASE_URL = (import.meta as any)?.env?.VITE_API_BASE_URL || "https://superambitious-cohen-roentgenologically.ngrok-free.dev";
+
+// Dev-only diagnostic logging to confirm which backend URL is used
+if ((import.meta as any)?.env?.DEV) {
+  console.log("VITE_API_BASE_URL:", (import.meta as any).env?.VITE_API_BASE_URL);
+  console.log("Effective API_BASE_URL:", API_BASE_URL);
+}
 
 interface StoryData {
   storyId: string;
@@ -192,7 +200,9 @@ const Index = () => {
         requestBody.existingSubtaskKey = existingTestPlan.subtaskKey;
       }
 
-      const response = await axios.post(`${API_BASE_URL}/webhook/generate-testplan`, requestBody);
+      const response = await axios.post(`${API_BASE_URL}/webhook/generate-testplan`, requestBody, {
+        timeout: 180000 // 3 minutes timeout for AI generation
+      });
 
       setStoryData({
         storyId: response.data.storyId,
@@ -285,6 +295,8 @@ const Index = () => {
         originalTestPlan: testPlan,
         feedback: feedbackText,
         iteration: qualityMetrics?.iterations,
+      }, {
+        timeout: 180000 // 3 minutes timeout for AI regeneration
       });
 
       setTestPlan(response.data.testPlan);
@@ -396,6 +408,8 @@ const Index = () => {
           storyTitle: storyData?.storyTitle,
           description: "Context from story",
         },
+      }, {
+        timeout: 120000 // 2 minutes timeout for test case details
       });
 
       setTestCasesWithDetails(response.data.testCasesWithDetails || []);
@@ -589,7 +603,7 @@ const Index = () => {
             <Button
               onClick={handleGenerate}
               disabled={isGenerating || isCheckingExisting || !jiraUrl.trim()}
-              className="w-full h-12"
+              className="w-full h-12 bg-warning hover:bg-warning/90 text-warning-foreground"
               size="lg"
             >
               {isCheckingExisting ? (

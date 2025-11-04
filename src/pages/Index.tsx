@@ -1256,7 +1256,7 @@ const Index = () => {
                                             newValue
                                           )
                                         }
-                                        placeholder="Cliquez pour ajouter des données de test..."
+                                        placeholder={t.qmetryExport.testDataPlaceholder}
                                         multiline
                                       />
                                     </td>

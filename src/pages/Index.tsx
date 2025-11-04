@@ -42,6 +42,7 @@ if ((import.meta as any)?.env?.DEV) {
 interface StoryData {
   storyId: string;
   storyTitle: string;
+  projectKey?: string;
 }
 
 interface AgentAnalysis {
@@ -215,6 +216,7 @@ const Index = () => {
       setStoryData({
         storyId: response.data.storyId,
         storyTitle: response.data.storyTitle,
+        projectKey: response.data.projectKey,
       });
       setAgentAnalysis(response.data.agentAnalysis);
       setTestCaseMetrics(response.data.testCaseMetrics);
@@ -249,6 +251,7 @@ const Index = () => {
       if (updateMode && existingTestPlan) {
         await axios.post(`${API_BASE_URL}/webhook/update-testplan`, {
           subtaskKey: existingTestPlan.subtaskKey,
+          projectKey: storyData?.projectKey,
           storyTitle: storyData?.storyTitle,
           testPlan: testPlan,
           testPlanId: testPlanId,
@@ -265,6 +268,7 @@ const Index = () => {
       } else {
         const response = await axios.post(`${API_BASE_URL}/webhook/approve-testplan`, {
           parentIssueKey: storyData?.storyId,
+          projectKey: storyData?.projectKey,
           storyTitle: storyData?.storyTitle,
           testPlan: testPlan,
           testPlanId: testPlanId,

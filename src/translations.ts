@@ -59,6 +59,7 @@ export const translations = {
       approving: "Création de la sub-task en cours...",
       updating: "Mise à jour en cours...",
       correctionButton: "✏️ Demander une Correction",
+      regenerating: "Régénération du plan de test...",
     },
     correctionModal: {
       title: "💬 Quelle amélioration souhaitez-vous ?",
@@ -97,6 +98,7 @@ export const translations = {
       testSteps: "Étapes de Test",
       step: "Étape",
       action: "Action",
+      testData: "Données de Test",
       expectedResult: "Résultat Attendu",
       estimatedTime: "Temps Estimé",
       labels: "Labels",
@@ -198,6 +200,7 @@ export const translations = {
       approving: "Creating sub-task...",
       updating: "Updating...",
       correctionButton: "✏️ Request Correction",
+      regenerating: "Regenerating test plan...",
     },
     correctionModal: {
       title: "💬 What improvement would you like?",
@@ -236,6 +239,7 @@ export const translations = {
       testSteps: "Test Steps",
       step: "Step",
       action: "Action",
+      testData: "Test Data",
       expectedResult: "Expected Result",
       estimatedTime: "Estimated Time",
       labels: "Labels",
@@ -337,6 +341,7 @@ export const translations = {
       approving: "Создание подзадачи...",
       updating: "Обновление...",
       correctionButton: "✏️ Запросить исправление",
+      regenerating: "Регенерация тест-плана...",
     },
     correctionModal: {
       title: "💬 Какое улучшение вы хотите?",
@@ -375,6 +380,7 @@ export const translations = {
       testSteps: "Шаги теста",
       step: "Шаг",
       action: "Действие",
+      testData: "Тестовые данные",
       expectedResult: "Ожидаемый результат",
       estimatedTime: "Расчетное время",
       labels: "Метки",

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import axios from "axios";
 import ReactMarkdown from "react-markdown";
-import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle, Globe, List, ChevronDown, FolderOpen } from "lucide-react";
+import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle, Globe, List, ChevronDown, FolderOpen, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -79,6 +79,84 @@ interface AgentReasoning {
   impact?: string;
 }
 
+// ============================================
+// COMPOSANT EDITABLE CELL
+// ============================================
+interface EditableCellProps {
+  value: string;
+  onSave: (newValue: string) => void;
+  placeholder?: string;
+  multiline?: boolean;
+}
+
+const EditableCell: React.FC<EditableCellProps> = ({
+  value,
+  onSave,
+  placeholder = "",
+  multiline = false
+}) => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editValue, setEditValue] = useState(value);
+
+  const handleSave = () => {
+    onSave(editValue);
+    setIsEditing(false);
+  };
+
+  const handleCancel = () => {
+    setEditValue(value);
+    setIsEditing(false);
+  };
+
+  if (isEditing) {
+    return (
+      <div className="space-y-2">
+        {multiline ? (
+          <Textarea
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            placeholder={placeholder}
+            className="w-full min-h-[80px]"
+            autoFocus
+          />
+        ) : (
+          <Input
+            value={editValue}
+            onChange={(e) => setEditValue(e.target.value)}
+            placeholder={placeholder}
+            className="w-full"
+            autoFocus
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSave();
+              if (e.key === "Escape") handleCancel();
+            }}
+          />
+        )}
+        <div className="flex gap-2">
+          <Button size="sm" onClick={handleSave}>
+            ✓ Enregistrer
+          </Button>
+          <Button size="sm" variant="outline" onClick={handleCancel}>
+            ✕ Annuler
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="cursor-pointer hover:bg-muted/50 p-2 rounded min-h-[40px] flex items-center group"
+      onClick={() => setIsEditing(true)}
+    >
+      <span className="flex-1 text-muted-foreground whitespace-pre-wrap">
+        {editValue || placeholder}
+      </span>
+      <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity ml-2" />
+    </div>
+  );
+};
+
 const Index = () => {
   const { language, setLanguage } = useLanguage();
   const t = translations[language];
@@ -121,6 +199,44 @@ const Index = () => {
   const [showDetailsProgress, setShowDetailsProgress] = useState(false);
 
   const { toast } = useToast();
+
+  // ============================================
+  // FONCTIONS DE MISE À JOUR DES TEST CASES
+  // ============================================
+  const updateTestCaseField = (
+    testCaseId: string,
+    field: string,
+    value: any
+  ) => {
+    setTestCasesWithDetails((prev) =>
+      prev.map((tc) =>
+        tc.id === testCaseId || tc.testCaseId === testCaseId
+          ? { ...tc, [field]: value }
+          : tc
+      )
+    );
+  };
+
+  const updateTestStep = (
+    testCaseId: string,
+    stepIndex: number,
+    field: string,
+    value: string
+  ) => {
+    setTestCasesWithDetails((prev) =>
+      prev.map((tc) => {
+        if (tc.id === testCaseId || tc.testCaseId === testCaseId) {
+          const updatedSteps = [...tc.testSteps];
+          updatedSteps[stepIndex] = {
+            ...updatedSteps[stepIndex],
+            [field]: value,
+          };
+          return { ...tc, testSteps: updatedSteps };
+        }
+        return tc;
+      })
+    );
+  };
 
   const getLanguageName = (lang: Language) => {
     const names = { fr: "Français", en: "English", ru: "Русский" };
@@ -1039,33 +1155,50 @@ const Index = () => {
                       </div>
                     </AccordionTrigger>
                     <AccordionContent className="space-y-4 pt-4">
-                      {/* Description */}
+                      {/* Description - Éditable */}
                       <div>
                         <h4 className="font-semibold text-sm mb-2">
                           {t.qmetryExport.description}
                         </h4>
-                        <p className="text-sm text-muted-foreground">
-                          {testCase.description}
-                        </p>
+                        <EditableCell
+                          value={testCase.description || ""}
+                          onSave={(newValue) =>
+                            updateTestCaseField(testCase.testCaseId, "description", newValue)
+                          }
+                          placeholder="Cliquez pour ajouter une description..."
+                          multiline
+                        />
                       </div>
 
-                      {/* Preconditions */}
-                      {testCase.preconditions && testCase.preconditions.length > 0 && (
+                      {/* Preconditions - Éditable */}
+                      {testCase.preconditions && (
                         <div>
                           <h4 className="font-semibold text-sm mb-2">
                             {t.qmetryExport.preconditions}
                           </h4>
-                          <ul className="list-disc list-inside space-y-1">
-                            {testCase.preconditions.map((precondition: string, i: number) => (
-                              <li key={i} className="text-sm text-muted-foreground">
-                                {precondition}
-                              </li>
-                            ))}
-                          </ul>
+                          <EditableCell
+                            value={
+                              Array.isArray(testCase.preconditions)
+                                ? testCase.preconditions.join("\n")
+                                : testCase.preconditions
+                            }
+                            onSave={(newValue) => {
+                              const preconditionsArray = newValue
+                                .split("\n")
+                                .filter((p) => p.trim() !== "");
+                              updateTestCaseField(
+                                testCase.testCaseId,
+                                "preconditions",
+                                preconditionsArray
+                              );
+                            }}
+                            placeholder="Cliquez pour ajouter des préconditions..."
+                            multiline
+                          />
                         </div>
                       )}
 
-                      {/* Test Steps */}
+                      {/* Test Steps avec colonne Test Data */}
                       {testCase.testSteps && testCase.testSteps.length > 0 && (
                         <div>
                           <h4 className="font-semibold text-sm mb-2">
@@ -1075,26 +1208,74 @@ const Index = () => {
                             <table className="w-full text-sm">
                               <thead className="bg-muted">
                                 <tr>
-                                  <th className="text-left p-2 font-semibold">
+                                  <th className="text-left p-2 font-semibold w-16">
                                     {t.qmetryExport.step}
                                   </th>
-                                  <th className="text-left p-2 font-semibold">
+                                  <th className="text-left p-2 font-semibold w-1/3">
                                     {t.qmetryExport.action}
                                   </th>
-                                  <th className="text-left p-2 font-semibold">
+                                  <th className="text-left p-2 font-semibold w-1/4">
+                                    {t.qmetryExport.testData}
+                                  </th>
+                                  <th className="text-left p-2 font-semibold w-1/3">
                                     {t.qmetryExport.expectedResult}
                                   </th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {testCase.testSteps.map((step: any, i: number) => (
-                                  <tr key={i} className="border-t">
-                                    <td className="p-2">{step.step}</td>
-                                    <td className="p-2 text-muted-foreground">
-                                      {step.action}
+                                  <tr key={i} className="border-t hover:bg-muted/30 transition-colors">
+                                    <td className="p-2 font-medium">{step.step || i + 1}</td>
+                                    
+                                    {/* Colonne Action - Éditable */}
+                                    <td className="p-2">
+                                      <EditableCell
+                                        value={step.action || step.stepDetails || ""}
+                                        onSave={(newValue) =>
+                                          updateTestStep(
+                                            testCase.testCaseId,
+                                            i,
+                                            "action",
+                                            newValue
+                                          )
+                                        }
+                                        placeholder="Cliquez pour ajouter une action..."
+                                        multiline
+                                      />
                                     </td>
-                                    <td className="p-2 text-muted-foreground">
-                                      {step.expectedResult}
+
+                                    {/* Colonne Test Data - Éditable */}
+                                    <td className="p-2 bg-blue-50/30 dark:bg-blue-950/20">
+                                      <EditableCell
+                                        value={step.testData || step.data || ""}
+                                        onSave={(newValue) =>
+                                          updateTestStep(
+                                            testCase.testCaseId,
+                                            i,
+                                            "testData",
+                                            newValue
+                                          )
+                                        }
+                                        placeholder="Cliquez pour ajouter des données de test..."
+                                        multiline
+                                      />
+                                    </td>
+
+                                    {/* Colonne Expected Result - Éditable */}
+                                    <td className="p-2">
+                                      <EditableCell
+                                        value={step.expectedResult || ""}
+                                        onSave={(newValue) =>
+                                          updateTestStep(
+                                            testCase.testCaseId,
+                                            i,
+                                            "expectedResult",
+                                            newValue
+                                          )
+                                        }
+                                        placeholder="Cliquez pour ajouter le résultat attendu..."
+                                        multiline
+                                      />
                                     </td>
                                   </tr>
                                 ))}

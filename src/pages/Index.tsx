@@ -550,7 +550,16 @@ const Index = () => {
         timeout: 600000 // 10 minutes timeout for test case details
       });
 
-      setTestCasesWithDetails(response.data.testCasesWithDetails || []);
+      // Enrichir les détails avec le titre depuis la liste originale
+      const detailsWithTitles = response.data.testCasesWithDetails?.map((detail: any) => {
+        const originalTC = testCaseList.find((tc: any) => tc.id === detail.id || tc.id === detail.testCaseId);
+        return {
+          ...detail,
+          title: originalTC?.title || detail.title,
+        };
+      }) || [];
+
+      setTestCasesWithDetails(detailsWithTitles);
 
       toast({
         title: t.toasts.testCasesGenerated,

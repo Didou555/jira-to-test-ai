@@ -87,13 +87,15 @@ interface EditableCellProps {
   onSave: (newValue: string) => void;
   placeholder?: string;
   multiline?: boolean;
+  renderAsMarkdown?: boolean;
 }
 
 const EditableCell: React.FC<EditableCellProps> = ({
   value,
   onSave,
   placeholder = "",
-  multiline = false
+  multiline = false,
+  renderAsMarkdown = false
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editValue, setEditValue] = useState(value);
@@ -149,9 +151,15 @@ const EditableCell: React.FC<EditableCellProps> = ({
       className="cursor-pointer hover:bg-muted/50 p-2 rounded min-h-[40px] flex items-center group"
       onClick={() => setIsEditing(true)}
     >
-      <span className="flex-1 text-muted-foreground whitespace-pre-wrap">
-        {editValue || placeholder}
-      </span>
+      {renderAsMarkdown && editValue ? (
+        <div className="flex-1 prose prose-sm dark:prose-invert max-w-none">
+          <ReactMarkdown>{editValue}</ReactMarkdown>
+        </div>
+      ) : (
+        <span className="flex-1 text-muted-foreground whitespace-pre-wrap">
+          {editValue || placeholder}
+        </span>
+      )}
       <Pencil className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity ml-2" />
     </div>
   );
@@ -987,6 +995,7 @@ const Index = () => {
                   onSave={(newValue) => setTestPlan(newValue)}
                   placeholder={t.testPlan.editPlaceholder}
                   multiline
+                  renderAsMarkdown
                 />
               </div>
 

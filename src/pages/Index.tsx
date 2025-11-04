@@ -201,7 +201,7 @@ const Index = () => {
       }
 
       const response = await axios.post(`${API_BASE_URL}/webhook/generate-testplan`, requestBody, {
-        timeout: 180000 // 3 minutes timeout for AI generation
+        timeout: 360000 // 6 minutes timeout for AI generation
       });
 
       setStoryData({
@@ -296,7 +296,7 @@ const Index = () => {
         feedback: feedbackText,
         iteration: qualityMetrics?.iterations,
       }, {
-        timeout: 180000 // 3 minutes timeout for AI regeneration
+        timeout: 360000 // 6 minutes timeout for AI regeneration
       });
 
       setTestPlan(response.data.testPlan);
@@ -409,7 +409,7 @@ const Index = () => {
           description: "Context from story",
         },
       }, {
-        timeout: 120000 // 2 minutes timeout for test case details
+        timeout: 360000 // 6 minutes timeout for test case details
       });
 
       setTestCasesWithDetails(response.data.testCasesWithDetails || []);

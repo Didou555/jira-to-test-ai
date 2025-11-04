@@ -22,6 +22,7 @@ import {
 import { StatCard } from "@/components/StatCard";
 import { TimelineStep } from "@/components/TimelineStep";
 import { FolderTree } from "@/components/FolderTree";
+import { SmartProgressBar } from "@/components/SmartProgressBar";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage, Language } from "@/contexts/LanguageContext";
 import { translations } from "@/translations";
@@ -112,6 +113,12 @@ const Index = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [showFolderModal, setShowFolderModal] = useState(false);
   const [isLoadingFolders, setIsLoadingFolders] = useState(false);
+
+  // Progress bar states
+  const [showGenerateProgress, setShowGenerateProgress] = useState(false);
+  const [showCorrectionProgress, setShowCorrectionProgress] = useState(false);
+  const [showDetailsProgress, setShowDetailsProgress] = useState(false);
+
   const { toast } = useToast();
 
   const getLanguageName = (lang: Language) => {
@@ -186,6 +193,7 @@ const Index = () => {
 
   const generateTestPlan = async (isUpdate: boolean) => {
     setIsGenerating(true);
+    setShowGenerateProgress(true);
 
     try {
       const requestBody: any = {
@@ -226,7 +234,11 @@ const Index = () => {
         variant: "destructive",
       });
     } finally {
-      setIsGenerating(false);
+      setShowGenerateProgress(false);
+      // Wait 1 second before clearing loading state (shows 100% completion)
+      setTimeout(() => {
+        setIsGenerating(false);
+      }, 1000);
     }
   };
 
@@ -288,6 +300,7 @@ const Index = () => {
 
     setShowCorrectionModal(false);
     setIsGenerating(true);
+    setShowCorrectionProgress(true);
 
     try {
       const response = await axios.post(`${API_BASE_URL}/webhook/request-correction`, {
@@ -319,7 +332,11 @@ const Index = () => {
         variant: "destructive",
       });
     } finally {
-      setIsGenerating(false);
+      setShowCorrectionProgress(false);
+      // Wait 1 second before clearing loading state (shows 100% completion)
+      setTimeout(() => {
+        setIsGenerating(false);
+      }, 1000);
     }
   };
 
@@ -397,6 +414,7 @@ const Index = () => {
     }
 
     setIsGeneratingDetails(true);
+    setShowDetailsProgress(true);
 
     try {
       const selectedTCs = testCaseList.filter((tc: any) => selectedTestCases.includes(tc.id));
@@ -430,7 +448,11 @@ const Index = () => {
         variant: "destructive",
       });
     } finally {
-      setIsGeneratingDetails(false);
+      setShowDetailsProgress(false);
+      // Wait 1 second before clearing loading state (shows 100% completion)
+      setTimeout(() => {
+        setIsGeneratingDetails(false);
+      }, 1000);
     }
   };
 
@@ -620,6 +642,16 @@ const Index = () => {
                 t.step1.generateButton
               )}
             </Button>
+
+            {/* Progress Bar for AI Generation */}
+            {showGenerateProgress && (
+              <div className="mt-4">
+                <SmartProgressBar
+                  isActive={showGenerateProgress}
+                  label={t.step1.analyzing}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -864,6 +896,16 @@ const Index = () => {
                   {t.testPlan.correctionButton}
                 </Button>
               </div>
+
+              {/* Progress Bar for AI Regeneration */}
+              {showCorrectionProgress && (
+                <div className="mt-4 pt-4 border-t">
+                  <SmartProgressBar
+                    isActive={showCorrectionProgress}
+                    label={t.testPlan.regenerating || "Regenerating test plan..."}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         )}
@@ -954,6 +996,16 @@ const Index = () => {
                   )}
                 </Button>
               </div>
+
+              {/* Progress Bar for Test Case Details Generation */}
+              {showDetailsProgress && (
+                <div className="mt-6">
+                  <SmartProgressBar
+                    isActive={showDetailsProgress}
+                    label={t.qmetryExport.generating || "Generating detailed test cases..."}
+                  />
+                </div>
+              )}
             </CardContent>
           </Card>
         )}

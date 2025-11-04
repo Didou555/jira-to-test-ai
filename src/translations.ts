@@ -60,6 +60,7 @@ export const translations = {
       updating: "Mise à jour en cours...",
       correctionButton: "✏️ Demander une Correction",
       regenerating: "Régénération du plan de test...",
+      editPlaceholder: "Cliquez pour modifier le plan de test...",
     },
     correctionModal: {
       title: "💬 Quelle amélioration souhaitez-vous ?",
@@ -202,6 +203,7 @@ export const translations = {
       updating: "Updating...",
       correctionButton: "✏️ Request Correction",
       regenerating: "Regenerating test plan...",
+      editPlaceholder: "Click to edit the test plan...",
     },
     correctionModal: {
       title: "💬 What improvement would you like?",
@@ -344,6 +346,7 @@ export const translations = {
       updating: "Обновление...",
       correctionButton: "✏️ Запросить исправление",
       regenerating: "Регенерация тест-плана...",
+      editPlaceholder: "Нажмите для редактирования тест-плана...",
     },
     correctionModal: {
       title: "💬 Какое улучшение вы хотите?",

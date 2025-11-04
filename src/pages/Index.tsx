@@ -972,8 +972,13 @@ const Index = () => {
               )}
             </CardHeader>
             <CardContent className="space-y-6">
-              <div className="bg-muted p-6 rounded-lg border max-h-[600px] overflow-y-auto prose prose-sm max-w-none">
-                <ReactMarkdown>{testPlan}</ReactMarkdown>
+              <div className="bg-muted p-6 rounded-lg border">
+                <EditableCell
+                  value={testPlan}
+                  onSave={(newValue) => setTestPlan(newValue)}
+                  placeholder={t.testPlan.editPlaceholder}
+                  multiline
+                />
               </div>
 
               <div className="border-t my-8" />

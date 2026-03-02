@@ -328,38 +328,48 @@ const Index = () => {
     await generateTestPlan(false, storyContextData);
   };
 
-  const generateTestPlan = async (isUpdate: boolean) => {
+  const generateTestPlan = async (isUpdate: boolean, storyContext?: any) => {
     setIsGenerating(true);
     setShowGenerateProgress(true);
 
     try {
-      const requestBody: any = {
-        jiraUrl,
-        action: "generate",
-        userId: "demo-user",
-      };
-
-      if (isUpdate && existingTestPlan) {
-        requestBody.updateMode = true;
-        requestBody.existingTestPlan = existingTestPlan.currentTestPlan;
-        requestBody.existingSubtaskKey = existingTestPlan.subtaskKey;
+      // If no story context passed, read it first
+      let context = storyContext || storyContextData;
+      if (!context) {
+        const { data, error } = await supabase.functions.invoke("read-jira-story", {
+          body: { jiraUrl },
+        });
+        if (error) throw new Error(error.message);
+        context = data;
+        setStoryContextData(context);
+        setStoryData({
+          storyId: context.storyId,
+          storyTitle: context.storyTitle,
+          projectKey: context.projectKey,
+        });
       }
 
-      const response = await axios.post(`${API_BASE_URL}/webhook/generate-testplan`, requestBody, {
-        timeout: 600000 // 10 minutes timeout for AI generation
+      const { data: result, error: genError } = await supabase.functions.invoke("generate-testplan", {
+        body: {
+          storyContext: context,
+          updateMode: isUpdate,
+          existingTestPlan: isUpdate && existingTestPlan ? existingTestPlan.currentTestPlan : undefined,
+        },
       });
 
+      if (genError) throw new Error(genError.message);
+
       setStoryData({
-        storyId: response.data.storyId,
-        storyTitle: response.data.storyTitle,
-        projectKey: response.data.projectKey,
+        storyId: result.storyId,
+        storyTitle: result.storyTitle,
+        projectKey: result.projectKey,
       });
-      setAgentAnalysis(response.data.agentAnalysis);
-      setTestCaseMetrics(response.data.testCaseMetrics);
-      setQualityMetrics(response.data.qualityMetrics);
-      setAgentReasoning(response.data.agentReasoning);
-      setTestPlan(response.data.testPlan);
-      setTestPlanId(response.data.testPlanId);
+      setAgentAnalysis(result.agentAnalysis);
+      setTestCaseMetrics(result.testCaseMetrics);
+      setQualityMetrics(result.qualityMetrics);
+      setAgentReasoning(result.agentReasoning);
+      setTestPlan(result.testPlan);
+      setTestPlanId(result.testPlanId);
 
       setTimeout(() => {
         document.getElementById("testplan-card")?.scrollIntoView({ behavior: "smooth" });
@@ -368,12 +378,11 @@ const Index = () => {
       console.error("Erreur:", error);
       toast({
         title: t.toasts.errorGenerate,
-        description: t.toasts.errorGenerateDesc,
+        description: error instanceof Error ? error.message : t.toasts.errorGenerateDesc,
         variant: "destructive",
       });
     } finally {
       setShowGenerateProgress(false);
-      // Wait 1 second before clearing loading state (shows 100% completion)
       setTimeout(() => {
         setIsGenerating(false);
       }, 1000);
@@ -385,14 +394,17 @@ const Index = () => {
 
     try {
       if (updateMode && existingTestPlan) {
-        await axios.post(`${API_BASE_URL}/webhook/update-testplan`, {
-          subtaskKey: existingTestPlan.subtaskKey,
-          projectKey: storyData?.projectKey,
-          storyTitle: storyData?.storyTitle,
-          testPlan: testPlan,
-          testPlanId: testPlanId,
-          action: "update",
+        const { error } = await supabase.functions.invoke("approve-testplan", {
+          body: {
+            subtaskKey: existingTestPlan.subtaskKey,
+            projectKey: storyData?.projectKey,
+            storyTitle: storyData?.storyTitle,
+            testPlan: testPlan,
+            testPlanId: testPlanId,
+            action: "update",
+          },
         });
+        if (error) throw new Error(error.message);
 
         toast({
           title: t.toasts.testPlanUpdated,
@@ -402,17 +414,20 @@ const Index = () => {
         setSubtaskKey(existingTestPlan.subtaskKey);
         setSubtaskUrl(existingTestPlan.subtaskUrl);
       } else {
-        const response = await axios.post(`${API_BASE_URL}/webhook/approve-testplan`, {
-          parentIssueKey: storyData?.storyId,
-          projectKey: storyData?.projectKey,
-          storyTitle: storyData?.storyTitle,
-          testPlan: testPlan,
-          testPlanId: testPlanId,
-          action: "approve",
+        const { data: result, error } = await supabase.functions.invoke("approve-testplan", {
+          body: {
+            parentIssueKey: storyData?.storyId,
+            projectKey: storyData?.projectKey,
+            storyTitle: storyData?.storyTitle,
+            testPlan: testPlan,
+            testPlanId: testPlanId,
+            action: "approve",
+          },
         });
+        if (error) throw new Error(error.message);
 
-        setSubtaskKey(response.data.subtaskKey);
-        setSubtaskUrl(response.data.subtaskUrl);
+        setSubtaskKey(result.subtaskKey);
+        setSubtaskUrl(result.subtaskUrl);
       }
 
       setShowSuccessModal(true);
@@ -420,7 +435,7 @@ const Index = () => {
       console.error("Erreur:", error);
       toast({
         title: t.toasts.errorApprove,
-        description: t.toasts.errorApproveDesc,
+        description: error instanceof Error ? error.message : t.toasts.errorApproveDesc,
         variant: "destructive",
       });
     } finally {

@@ -1,7 +1,7 @@
 import { useState } from "react";
-import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle, Globe, List, ChevronDown, FolderOpen, Pencil } from "lucide-react";
+import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle, Globe, List, ChevronDown, FolderOpen, Pencil, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,19 +25,9 @@ import { FolderTree } from "@/components/FolderTree";
 import { SmartProgressBar } from "@/components/SmartProgressBar";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage, Language } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { translations } from "@/translations";
-
-axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
-
-// Allow overriding the backend base URL via Vite env var
-// Example: set VITE_API_BASE_URL in .env to your n8n base URL
-const API_BASE_URL = (import.meta as any)?.env?.VITE_API_BASE_URL || "https://superambitious-cohen-roentgenologically.ngrok-free.dev";
-
-// Dev-only diagnostic logging to confirm which backend URL is used
-if ((import.meta as any)?.env?.DEV) {
-  console.log("VITE_API_BASE_URL:", (import.meta as any).env?.VITE_API_BASE_URL);
-  console.log("Effective API_BASE_URL:", API_BASE_URL);
-}
+import { supabase } from "@/integrations/supabase/client";
 
 interface StoryData {
   storyId: string;
@@ -167,6 +157,8 @@ const EditableCell: React.FC<EditableCellProps> = ({
 
 const Index = () => {
   const { language, setLanguage } = useLanguage();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const t = translations[language];
   
   const [jiraUrl, setJiraUrl] = useState("");
@@ -279,75 +271,105 @@ const Index = () => {
     setUpdateMode(false);
 
     try {
-      const issueKey = jiraUrl.split('/').pop();
-      
-      const checkResponse = await axios.post(`${API_BASE_URL}/webhook/check-existing-testplan`, {
-        issueKey: issueKey,
+      // Read story from Jira to check for existing subtask
+      const { data: storyResult, error: storyError } = await supabase.functions.invoke("read-jira-story", {
+        body: { jiraUrl },
       });
 
-      if (checkResponse.data.exists) {
+      if (storyError) throw new Error(storyError.message || "Failed to read Jira story");
+
+      if (storyResult.existingSubtask) {
         setExistingTestPlan({
-          subtaskKey: checkResponse.data.subtaskKey,
-          subtaskUrl: checkResponse.data.subtaskUrl,
-          summary: checkResponse.data.summary,
-          created: checkResponse.data.created,
-          currentTestPlan: checkResponse.data.testPlanContent,
+          subtaskKey: storyResult.existingSubtask.key,
+          subtaskUrl: `https://${jiraUrl.split("/browse/")[0].replace("https://", "")}/browse/${storyResult.existingSubtask.key}`,
+          summary: storyResult.existingSubtask.summary,
+          created: "",
+          currentTestPlan: JSON.stringify(storyResult.existingSubtask.description),
+        });
+        // Store story data for later use
+        setStoryData({
+          storyId: storyResult.storyId,
+          storyTitle: storyResult.storyTitle,
+          projectKey: storyResult.projectKey,
         });
         setIsCheckingExisting(false);
         return;
       }
 
+      // No existing subtask, store context and generate
+      setStoryData({
+        storyId: storyResult.storyId,
+        storyTitle: storyResult.storyTitle,
+        projectKey: storyResult.projectKey,
+      });
       setIsCheckingExisting(false);
-      await generateTestPlan(false);
+      await generateTestPlan(false, storyResult);
     } catch (error) {
       console.error("Erreur:", error);
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Erreur lors de la lecture de la story",
+        variant: "destructive",
+      });
       setIsCheckingExisting(false);
-      await generateTestPlan(false);
     }
   };
 
+  // Store story context for reuse
+  const [storyContextData, setStoryContextData] = useState<any>(null);
+
   const handleUpdateExisting = async () => {
     setUpdateMode(true);
-    await generateTestPlan(true);
+    await generateTestPlan(true, storyContextData);
   };
 
   const handleCreateNew = async () => {
     setUpdateMode(false);
-    await generateTestPlan(false);
+    await generateTestPlan(false, storyContextData);
   };
 
-  const generateTestPlan = async (isUpdate: boolean) => {
+  const generateTestPlan = async (isUpdate: boolean, storyContext?: any) => {
     setIsGenerating(true);
     setShowGenerateProgress(true);
 
     try {
-      const requestBody: any = {
-        jiraUrl,
-        action: "generate",
-        userId: "demo-user",
-      };
-
-      if (isUpdate && existingTestPlan) {
-        requestBody.updateMode = true;
-        requestBody.existingTestPlan = existingTestPlan.currentTestPlan;
-        requestBody.existingSubtaskKey = existingTestPlan.subtaskKey;
+      // If no story context passed, read it first
+      let context = storyContext || storyContextData;
+      if (!context) {
+        const { data, error } = await supabase.functions.invoke("read-jira-story", {
+          body: { jiraUrl },
+        });
+        if (error) throw new Error(error.message);
+        context = data;
+        setStoryContextData(context);
+        setStoryData({
+          storyId: context.storyId,
+          storyTitle: context.storyTitle,
+          projectKey: context.projectKey,
+        });
       }
 
-      const response = await axios.post(`${API_BASE_URL}/webhook/generate-testplan`, requestBody, {
-        timeout: 600000 // 10 minutes timeout for AI generation
+      const { data: result, error: genError } = await supabase.functions.invoke("generate-testplan", {
+        body: {
+          storyContext: context,
+          updateMode: isUpdate,
+          existingTestPlan: isUpdate && existingTestPlan ? existingTestPlan.currentTestPlan : undefined,
+        },
       });
 
+      if (genError) throw new Error(genError.message);
+
       setStoryData({
-        storyId: response.data.storyId,
-        storyTitle: response.data.storyTitle,
-        projectKey: response.data.projectKey,
+        storyId: result.storyId,
+        storyTitle: result.storyTitle,
+        projectKey: result.projectKey,
       });
-      setAgentAnalysis(response.data.agentAnalysis);
-      setTestCaseMetrics(response.data.testCaseMetrics);
-      setQualityMetrics(response.data.qualityMetrics);
-      setAgentReasoning(response.data.agentReasoning);
-      setTestPlan(response.data.testPlan);
-      setTestPlanId(response.data.testPlanId);
+      setAgentAnalysis(result.agentAnalysis);
+      setTestCaseMetrics(result.testCaseMetrics);
+      setQualityMetrics(result.qualityMetrics);
+      setAgentReasoning(result.agentReasoning);
+      setTestPlan(result.testPlan);
+      setTestPlanId(result.testPlanId);
 
       setTimeout(() => {
         document.getElementById("testplan-card")?.scrollIntoView({ behavior: "smooth" });
@@ -356,12 +378,11 @@ const Index = () => {
       console.error("Erreur:", error);
       toast({
         title: t.toasts.errorGenerate,
-        description: t.toasts.errorGenerateDesc,
+        description: error instanceof Error ? error.message : t.toasts.errorGenerateDesc,
         variant: "destructive",
       });
     } finally {
       setShowGenerateProgress(false);
-      // Wait 1 second before clearing loading state (shows 100% completion)
       setTimeout(() => {
         setIsGenerating(false);
       }, 1000);
@@ -373,14 +394,17 @@ const Index = () => {
 
     try {
       if (updateMode && existingTestPlan) {
-        await axios.post(`${API_BASE_URL}/webhook/update-testplan`, {
-          subtaskKey: existingTestPlan.subtaskKey,
-          projectKey: storyData?.projectKey,
-          storyTitle: storyData?.storyTitle,
-          testPlan: testPlan,
-          testPlanId: testPlanId,
-          action: "update",
+        const { error } = await supabase.functions.invoke("approve-testplan", {
+          body: {
+            subtaskKey: existingTestPlan.subtaskKey,
+            projectKey: storyData?.projectKey,
+            storyTitle: storyData?.storyTitle,
+            testPlan: testPlan,
+            testPlanId: testPlanId,
+            action: "update",
+          },
         });
+        if (error) throw new Error(error.message);
 
         toast({
           title: t.toasts.testPlanUpdated,
@@ -390,17 +414,20 @@ const Index = () => {
         setSubtaskKey(existingTestPlan.subtaskKey);
         setSubtaskUrl(existingTestPlan.subtaskUrl);
       } else {
-        const response = await axios.post(`${API_BASE_URL}/webhook/approve-testplan`, {
-          parentIssueKey: storyData?.storyId,
-          projectKey: storyData?.projectKey,
-          storyTitle: storyData?.storyTitle,
-          testPlan: testPlan,
-          testPlanId: testPlanId,
-          action: "approve",
+        const { data: result, error } = await supabase.functions.invoke("approve-testplan", {
+          body: {
+            parentIssueKey: storyData?.storyId,
+            projectKey: storyData?.projectKey,
+            storyTitle: storyData?.storyTitle,
+            testPlan: testPlan,
+            testPlanId: testPlanId,
+            action: "approve",
+          },
         });
+        if (error) throw new Error(error.message);
 
-        setSubtaskKey(response.data.subtaskKey);
-        setSubtaskUrl(response.data.subtaskUrl);
+        setSubtaskKey(result.subtaskKey);
+        setSubtaskUrl(result.subtaskUrl);
       }
 
       setShowSuccessModal(true);
@@ -408,7 +435,7 @@ const Index = () => {
       console.error("Erreur:", error);
       toast({
         title: t.toasts.errorApprove,
-        description: t.toasts.errorApproveDesc,
+        description: error instanceof Error ? error.message : t.toasts.errorApproveDesc,
         variant: "destructive",
       });
     } finally {
@@ -431,20 +458,20 @@ const Index = () => {
     setShowCorrectionProgress(true);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/webhook/request-correction`, {
-        testPlanId: testPlanId,
-        originalTestPlan: testPlan,
-        feedback: feedbackText,
-        iteration: qualityMetrics?.iterations,
-      }, {
-        timeout: 600000 // 10 minutes timeout for AI regeneration
+      const { data: result, error: corrError } = await supabase.functions.invoke("generate-testplan", {
+        body: {
+          storyContext: storyContextData,
+          feedback: feedbackText,
+        },
       });
 
-      setTestPlan(response.data.testPlan);
-      setTestPlanId(response.data.testPlanId);
+      if (corrError) throw new Error(corrError.message);
+
+      setTestPlan(result.testPlan);
+      setTestPlanId(result.testPlanId);
       setQualityMetrics({
         ...qualityMetrics!,
-        iterations: response.data.iteration,
+        iterations: (qualityMetrics?.iterations || 0) + 1,
       });
       setFeedbackText("");
 
@@ -490,22 +517,25 @@ const Index = () => {
     setSelectedFolderId(null);
     setSelectedQmetryFolder(null);
     setIsLoadingFolders(false);
+    setStoryContextData(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   // Qmetry Export Functions
   const handleShowTestCases = async () => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/webhook/parse-test-cases`, {
-        testPlan: testPlan,
+      const { data: result, error: parseError } = await supabase.functions.invoke("parse-test-cases", {
+        body: { testPlan: testPlan },
       });
 
-      setTestCaseList(response.data.testCases || []);
+      if (parseError) throw new Error(parseError.message);
+
+      setTestCaseList(result.testCases || []);
       setShowTestCaseList(true);
 
       toast({
         title: t.toasts.testCasesParsed,
-        description: t.toasts.testCasesParsedDesc.replace("{count}", String(response.data.testCases?.length || 0)),
+        description: t.toasts.testCasesParsedDesc.replace("{count}", String(result.testCases?.length || 0)),
       });
     } catch (error) {
       console.error("Error parsing test cases:", error);
@@ -547,19 +577,21 @@ const Index = () => {
     try {
       const selectedTCs = testCaseList.filter((tc: any) => selectedTestCases.includes(tc.id));
 
-      const response = await axios.post(`${API_BASE_URL}/webhook/generate-test-case-details`, {
-        selectedTestCases: selectedTCs,
-        storyContext: {
-          storyId: storyData?.storyId,
-          storyTitle: storyData?.storyTitle,
-          description: "Context from story",
+      const { data: result, error: detailsError } = await supabase.functions.invoke("generate-details", {
+        body: {
+          selectedTestCases: selectedTCs,
+          storyContext: {
+            storyId: storyData?.storyId,
+            storyTitle: storyData?.storyTitle,
+            description: "Context from story",
+          },
         },
-      }, {
-        timeout: 600000 // 10 minutes timeout for test case details
       });
 
+      if (detailsError) throw new Error(detailsError.message);
+
       // Enrichir les détails avec le titre depuis la liste originale
-      const detailsWithTitles = response.data.testCasesWithDetails?.map((detail: any) => {
+      const detailsWithTitles = result.testCasesWithDetails?.map((detail: any) => {
         const originalTC = testCaseList.find((tc: any) => tc.id === detail.id || tc.id === detail.testCaseId);
         return {
           ...detail,
@@ -571,7 +603,7 @@ const Index = () => {
 
       toast({
         title: t.toasts.testCasesGenerated,
-        description: t.toasts.testCasesGeneratedDesc.replace("{count}", String(response.data.testCasesWithDetails?.length || 0)),
+        description: t.toasts.testCasesGeneratedDesc.replace("{count}", String(result.testCasesWithDetails?.length || 0)),
       });
 
       setTimeout(() => {
@@ -602,22 +634,17 @@ const Index = () => {
         description: "Fetching QMetry folders...",
       });
 
-      // Simple GET request vers le flow n8n
-      const response = await axios.get(
-        `${API_BASE_URL}/webhook/get-qmetry-folders`,
-        {
-          headers: {
-            'ngrok-skip-browser-warning': 'true'
-          },
-          timeout: 30000 // 30 secondes timeout
-        }
-      );
+      const { data: result, error: folderError } = await supabase.functions.invoke("get-qmetry-folders", {
+        body: {},
+      });
 
-      if (!response.data.folders || !Array.isArray(response.data.folders)) {
+      if (folderError) throw new Error(folderError.message);
+
+      if (!result.folders || !Array.isArray(result.folders)) {
         throw new Error("Invalid response format from server");
       }
 
-      const folders = response.data.folders;
+      const folders = result.folders;
       console.log('✅ Folders received:', folders);
 
       // Afficher les dossiers
@@ -654,10 +681,14 @@ const Index = () => {
     setIsExporting(true);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/webhook/export-to-qmetry`, {
-        testCasesWithDetails: testCasesWithDetails,
-        selectedFolderId: selectedFolderId,
+      const { error: exportError } = await supabase.functions.invoke("export-to-qmetry", {
+        body: {
+          testCasesWithDetails: testCasesWithDetails,
+          selectedFolderId: selectedFolderId,
+        },
       });
+
+      if (exportError) throw new Error(exportError.message);
 
       toast({
         title: t.toasts.exportSuccess,
@@ -710,10 +741,7 @@ const Index = () => {
       <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="container flex h-16 items-center justify-between px-4">
           <h1 className="text-xl font-bold text-primary">{t.header.title}</h1>
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="border-secondary text-secondary">
-              {t.header.demo}
-            </Badge>
+          <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
@@ -733,6 +761,12 @@ const Index = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} title="Paramètres">
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={async () => { await signOut(); navigate("/login"); }} title="Déconnexion">
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </header>

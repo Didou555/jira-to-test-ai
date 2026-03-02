@@ -1,1 +1,22 @@
 project_id = "uokiiigxdblvmhmxsdvw"
+
+[functions.read-jira-story]
+verify_jwt = false
+
+[functions.generate-testplan]
+verify_jwt = false
+
+[functions.approve-testplan]
+verify_jwt = false
+
+[functions.parse-test-cases]
+verify_jwt = false
+
+[functions.generate-details]
+verify_jwt = false
+
+[functions.get-qmetry-folders]
+verify_jwt = false
+
+[functions.export-to-qmetry]
+verify_jwt = false

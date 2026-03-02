@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 32" fill="none">
+  <!-- X mark -->
+  <line x1="2" y1="6" x2="12" y2="16" stroke="#E8542E" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="12" y1="6" x2="2" y2="16" stroke="#E8542E" stroke-width="2.8" stroke-linecap="round"/>
+  <!-- earnix text -->
+  <text x="20" y="22" font-family="'DM Sans', Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#1A2340" letter-spacing="0.3">earnix</text>
+</svg>

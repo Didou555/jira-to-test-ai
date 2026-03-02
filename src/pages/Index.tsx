@@ -18,6 +18,7 @@ import { StatCard } from "@/components/StatCard";
 import { TimelineStep } from "@/components/TimelineStep";
 import { FolderTree } from "@/components/FolderTree";
 import { SmartProgressBar } from "@/components/SmartProgressBar";
+import { EarnixLogo } from "@/components/EarnixLogo";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage, Language } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
@@ -731,7 +732,7 @@ const Index = () => {
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="container flex h-16 items-center justify-between px-4">
-          <h1 className="text-xl font-bold text-primary">{t.header.title}</h1>
+          <EarnixLogo className="h-8" />
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
             <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} title="Paramètres">

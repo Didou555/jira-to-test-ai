@@ -15,24 +15,33 @@ serve(async (req) => {
     const { email, password, displayName } = await req.json();
     if (!email || !password) throw new Error("email and password required");
 
-    // Check if caller is admin (or if no users exist yet for bootstrap)
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader) {
+    // Check if any admin exists
+    const { data: existingAdmins } = await supabaseAdmin
+      .from("user_roles")
+      .select("id")
+      .eq("role", "admin")
+      .limit(1);
+    
+    const isBootstrap = !existingAdmins || existingAdmins.length === 0;
+
+    if (!isBootstrap) {
+      // Require caller to be admin
+      const authHeader = req.headers.get("Authorization");
+      if (!authHeader) throw new Error("Authorization required");
       const callerClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
         Deno.env.get("SUPABASE_ANON_KEY")!,
         { global: { headers: { Authorization: authHeader } } }
       );
       const { data: { user: caller } } = await callerClient.auth.getUser();
-      if (caller) {
-        const { data: roleData } = await supabaseAdmin
-          .from("user_roles")
-          .select("role")
-          .eq("user_id", caller.id)
-          .eq("role", "admin")
-          .maybeSingle();
-        if (!roleData) throw new Error("Only admins can create users");
-      }
+      if (!caller) throw new Error("Unauthorized");
+      const { data: roleData } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", caller.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (!roleData) throw new Error("Only admins can create users");
     }
 
     // Create user with auto-confirm

@@ -2,8 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { getSupabaseClient, getUserApiKeys } from "../_shared/supabase-helpers.ts";
 import { invokeBedrockModel } from "../_shared/aws-sig-v4.ts";
-
-const BEDROCK_MODEL_ID = "anthropic.claude-sonnet-4-20250514-v1:0";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
@@ -24,8 +23,15 @@ serve(async (req) => {
       throw new Error("AWS credentials not configured. Go to Settings.");
     }
 
-    // Build the prompt
-    const defaultSystemPrompt = `You are a senior QA engineer. Generate comprehensive test plans in markdown format based on Jira story details. Include test case IDs, titles, priorities, preconditions, steps, and expected results.`;
+    // Load AI config from database
+    const adminClient = createClient(
+      Deno.env.get("SUPABASE_URL")!,
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
+    );
+    const { data: aiConfig } = await adminClient.from("ai_config").select("*").limit(1).maybeSingle();
+
+    const BEDROCK_MODEL_ID = aiConfig?.model_id || "anthropic.claude-sonnet-4-20250514-v1:0";
+    const defaultSystemPrompt = aiConfig?.system_prompt || `You are a senior QA engineer. Generate comprehensive test plans in markdown format based on Jira story details. Include test case IDs, titles, priorities, preconditions, steps, and expected results.`;
 
     const userPromptParts: string[] = [];
     

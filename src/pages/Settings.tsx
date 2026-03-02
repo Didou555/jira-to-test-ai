@@ -14,6 +14,7 @@ import { ArrowLeft, Loader2, Save, Eye, EyeOff, LogOut, ShieldCheck } from "luci
 import { AIConfigSection } from "@/components/admin/AIConfigSection";
 import { UserManagementSection } from "@/components/admin/UserManagementSection";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { EarnixLogo } from "@/components/EarnixLogo";
 
 const Settings = () => {
   const { user, isAdmin, signOut } = useAuth();
@@ -141,6 +142,9 @@ const Settings = () => {
   return (
     <div className="min-h-screen bg-background p-4 md:p-8">
       <div className="max-w-3xl mx-auto space-y-6">
+        <div className="flex justify-center mb-2">
+          <EarnixLogo className="h-10" />
+        </div>
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate("/")}>
             <ArrowLeft className="h-4 w-4 mr-2" /> {t.back}

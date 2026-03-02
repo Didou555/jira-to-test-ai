@@ -517,6 +517,7 @@ const Index = () => {
     setSelectedFolderId(null);
     setSelectedQmetryFolder(null);
     setIsLoadingFolders(false);
+    setStoryContextData(null);
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -740,10 +741,7 @@ const Index = () => {
       <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
         <div className="container flex h-16 items-center justify-between px-4">
           <h1 className="text-xl font-bold text-primary">{t.header.title}</h1>
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="border-secondary text-secondary">
-              {t.header.demo}
-            </Badge>
+          <div className="flex items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="sm" className="gap-2">
@@ -763,6 +761,12 @@ const Index = () => {
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} title="Paramètres">
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="icon" onClick={async () => { await signOut(); navigate("/login"); }} title="Déconnexion">
+              <LogOut className="h-4 w-4" />
+            </Button>
           </div>
         </div>
       </header>

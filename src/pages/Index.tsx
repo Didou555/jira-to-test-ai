@@ -233,10 +233,6 @@ const Index = () => {
     );
   };
 
-  const getLanguageName = (lang: Language) => {
-    const names = { fr: "Français", en: "English", ru: "Русский" };
-    return names[lang];
-  };
 
   const handleGenerate = async () => {
     if (!jiraUrl.trim()) {

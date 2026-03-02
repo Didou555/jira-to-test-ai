@@ -458,20 +458,20 @@ const Index = () => {
     setShowCorrectionProgress(true);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/webhook/request-correction`, {
-        testPlanId: testPlanId,
-        originalTestPlan: testPlan,
-        feedback: feedbackText,
-        iteration: qualityMetrics?.iterations,
-      }, {
-        timeout: 600000 // 10 minutes timeout for AI regeneration
+      const { data: result, error: corrError } = await supabase.functions.invoke("generate-testplan", {
+        body: {
+          storyContext: storyContextData,
+          feedback: feedbackText,
+        },
       });
 
-      setTestPlan(response.data.testPlan);
-      setTestPlanId(response.data.testPlanId);
+      if (corrError) throw new Error(corrError.message);
+
+      setTestPlan(result.testPlan);
+      setTestPlanId(result.testPlanId);
       setQualityMetrics({
         ...qualityMetrics!,
-        iterations: response.data.iteration,
+        iterations: (qualityMetrics?.iterations || 0) + 1,
       });
       setFeedbackText("");
 
@@ -523,16 +523,18 @@ const Index = () => {
   // Qmetry Export Functions
   const handleShowTestCases = async () => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/webhook/parse-test-cases`, {
-        testPlan: testPlan,
+      const { data: result, error: parseError } = await supabase.functions.invoke("parse-test-cases", {
+        body: { testPlan: testPlan },
       });
 
-      setTestCaseList(response.data.testCases || []);
+      if (parseError) throw new Error(parseError.message);
+
+      setTestCaseList(result.testCases || []);
       setShowTestCaseList(true);
 
       toast({
         title: t.toasts.testCasesParsed,
-        description: t.toasts.testCasesParsedDesc.replace("{count}", String(response.data.testCases?.length || 0)),
+        description: t.toasts.testCasesParsedDesc.replace("{count}", String(result.testCases?.length || 0)),
       });
     } catch (error) {
       console.error("Error parsing test cases:", error);
@@ -574,19 +576,21 @@ const Index = () => {
     try {
       const selectedTCs = testCaseList.filter((tc: any) => selectedTestCases.includes(tc.id));
 
-      const response = await axios.post(`${API_BASE_URL}/webhook/generate-test-case-details`, {
-        selectedTestCases: selectedTCs,
-        storyContext: {
-          storyId: storyData?.storyId,
-          storyTitle: storyData?.storyTitle,
-          description: "Context from story",
+      const { data: result, error: detailsError } = await supabase.functions.invoke("generate-details", {
+        body: {
+          selectedTestCases: selectedTCs,
+          storyContext: {
+            storyId: storyData?.storyId,
+            storyTitle: storyData?.storyTitle,
+            description: "Context from story",
+          },
         },
-      }, {
-        timeout: 600000 // 10 minutes timeout for test case details
       });
 
+      if (detailsError) throw new Error(detailsError.message);
+
       // Enrichir les détails avec le titre depuis la liste originale
-      const detailsWithTitles = response.data.testCasesWithDetails?.map((detail: any) => {
+      const detailsWithTitles = result.testCasesWithDetails?.map((detail: any) => {
         const originalTC = testCaseList.find((tc: any) => tc.id === detail.id || tc.id === detail.testCaseId);
         return {
           ...detail,
@@ -598,7 +602,7 @@ const Index = () => {
 
       toast({
         title: t.toasts.testCasesGenerated,
-        description: t.toasts.testCasesGeneratedDesc.replace("{count}", String(response.data.testCasesWithDetails?.length || 0)),
+        description: t.toasts.testCasesGeneratedDesc.replace("{count}", String(result.testCasesWithDetails?.length || 0)),
       });
 
       setTimeout(() => {
@@ -629,22 +633,17 @@ const Index = () => {
         description: "Fetching QMetry folders...",
       });
 
-      // Simple GET request vers le flow n8n
-      const response = await axios.get(
-        `${API_BASE_URL}/webhook/get-qmetry-folders`,
-        {
-          headers: {
-            'ngrok-skip-browser-warning': 'true'
-          },
-          timeout: 30000 // 30 secondes timeout
-        }
-      );
+      const { data: result, error: folderError } = await supabase.functions.invoke("get-qmetry-folders", {
+        body: {},
+      });
 
-      if (!response.data.folders || !Array.isArray(response.data.folders)) {
+      if (folderError) throw new Error(folderError.message);
+
+      if (!result.folders || !Array.isArray(result.folders)) {
         throw new Error("Invalid response format from server");
       }
 
-      const folders = response.data.folders;
+      const folders = result.folders;
       console.log('✅ Folders received:', folders);
 
       // Afficher les dossiers
@@ -681,10 +680,14 @@ const Index = () => {
     setIsExporting(true);
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/webhook/export-to-qmetry`, {
-        testCasesWithDetails: testCasesWithDetails,
-        selectedFolderId: selectedFolderId,
+      const { error: exportError } = await supabase.functions.invoke("export-to-qmetry", {
+        body: {
+          testCasesWithDetails: testCasesWithDetails,
+          selectedFolderId: selectedFolderId,
+        },
       });
+
+      if (exportError) throw new Error(exportError.message);
 
       toast({
         title: t.toasts.exportSuccess,

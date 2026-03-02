@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { translations } from "@/translations";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Shield, Loader2, Eye, EyeOff } from "lucide-react";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -15,116 +18,83 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { signIn, signUp } = useAuth();
+  const { language } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const t = translations[language].login;
 
   const validatePassword = (pw: string): string | null => {
-    if (pw.length < 12) return "Le mot de passe doit contenir au moins 12 caractères";
-    if (!/[A-Z]/.test(pw)) return "Le mot de passe doit contenir au moins une majuscule";
-    if (!/[a-z]/.test(pw)) return "Le mot de passe doit contenir au moins une minuscule";
-    if (!/[0-9]/.test(pw)) return "Le mot de passe doit contenir au moins un chiffre";
-    if (!/[^A-Za-z0-9]/.test(pw)) return "Le mot de passe doit contenir au moins un caractère spécial";
+    if (pw.length < 12) return t.pwMin12;
+    if (!/[A-Z]/.test(pw)) return t.pwUppercase;
+    if (!/[a-z]/.test(pw)) return t.pwLowercase;
+    if (!/[0-9]/.test(pw)) return t.pwDigit;
+    if (!/[^A-Za-z0-9]/.test(pw)) return t.pwSpecial;
     return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-
     try {
       if (isSignUp) {
         const pwError = validatePassword(password);
         if (pwError) {
-          toast({ title: "Mot de passe invalide", description: pwError, variant: "destructive" });
+          toast({ title: t.invalidPassword, description: pwError, variant: "destructive" });
           setIsLoading(false);
           return;
         }
         const { error } = await signUp(email, password);
         if (error) throw error;
-        toast({
-          title: "Compte créé",
-          description: "Vérifiez votre email pour confirmer votre compte.",
-        });
+        toast({ title: t.accountCreated, description: t.accountCreatedDesc });
       } else {
         const { error } = await signIn(email, password);
         if (error) throw error;
         navigate("/");
       }
     } catch (error: any) {
-      toast({
-        title: "Erreur",
-        description: error.message || "Une erreur est survenue",
-        variant: "destructive",
-      });
+      toast({ title: t.error, description: error.message || t.genericError, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+      <div className="absolute top-4 right-4">
+        <LanguageSwitcher />
+      </div>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">
             <Shield className="h-7 w-7 text-primary" />
           </div>
-          <CardTitle className="text-2xl">QA Agent AI</CardTitle>
-          <CardDescription>
-            {isSignUp ? "Créer un compte sécurisé" : "Connectez-vous pour continuer"}
-          </CardDescription>
+          <CardTitle className="text-2xl">{t.title}</CardTitle>
+          <CardDescription>{isSignUp ? t.signUpDesc : t.signInDesc}</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="vous@entreprise.com"
-                required
-                autoComplete="email"
-              />
+              <Label htmlFor="email">{t.email}</Label>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder={t.emailPlaceholder} required autoComplete="email" />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="password">Mot de passe</Label>
+              <Label htmlFor="password">{t.password}</Label>
               <div className="relative">
-                <Input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder={isSignUp ? "Min. 12 caractères, maj, min, chiffre, spécial" : "Votre mot de passe"}
-                  required
-                  autoComplete={isSignUp ? "new-password" : "current-password"}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
+                <Input id="password" type={showPassword ? "text" : "password"} value={password} onChange={(e) => setPassword(e.target.value)} placeholder={isSignUp ? t.passwordPlaceholderSignUp : t.passwordPlaceholderSignIn} required autoComplete={isSignUp ? "new-password" : "current-password"} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {isSignUp && (
-                <p className="text-xs text-muted-foreground">
-                  Min. 12 caractères avec majuscule, minuscule, chiffre et caractère spécial
-                </p>
-              )}
+              {isSignUp && <p className="text-xs text-muted-foreground">{t.passwordHint}</p>}
             </div>
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isSignUp ? "Créer le compte" : "Se connecter"}
+              {isSignUp ? t.signUp : t.signIn}
             </Button>
           </form>
           <div className="mt-4 text-center">
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm text-primary hover:underline"
-            >
-              {isSignUp ? "Déjà un compte ? Se connecter" : "Pas de compte ? S'inscrire"}
+            <button type="button" onClick={() => setIsSignUp(!isSignUp)} className="text-sm text-primary hover:underline">
+              {isSignUp ? t.switchToSignIn : t.switchToSignUp}
             </button>
           </div>
         </CardContent>

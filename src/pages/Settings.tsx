@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { translations } from "@/translations";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,11 +13,14 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, Save, Eye, EyeOff, LogOut, ShieldCheck } from "lucide-react";
 import { AIConfigSection } from "@/components/admin/AIConfigSection";
 import { UserManagementSection } from "@/components/admin/UserManagementSection";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 
 const Settings = () => {
   const { user, isAdmin, signOut } = useAuth();
+  const { language } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
+  const t = translations[language].settings;
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
@@ -33,17 +38,11 @@ const Settings = () => {
   const [showAwsSecret, setShowAwsSecret] = useState(false);
   const [showAwsSession, setShowAwsSession] = useState(false);
 
-  useEffect(() => {
-    if (user) loadApiKeys();
-  }, [user]);
+  useEffect(() => { if (user) loadApiKeys(); }, [user]);
 
   const loadApiKeys = async () => {
     try {
-      const { data, error } = await supabase
-        .from("user_api_keys")
-        .select("*")
-        .eq("user_id", user!.id)
-        .maybeSingle();
+      const { data, error } = await supabase.from("user_api_keys").select("*").eq("user_id", user!.id).maybeSingle();
       if (error) throw error;
       if (data) {
         setJiraBaseUrl(data.jira_base_url || "");
@@ -56,7 +55,7 @@ const Settings = () => {
         setAwsSessionToken(data.aws_session_token || "");
       }
     } catch (error: any) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast({ title: t.error, description: error.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
@@ -68,29 +67,22 @@ const Settings = () => {
     try {
       const payload = {
         user_id: user.id,
-        jira_base_url: jiraBaseUrl || null,
-        jira_email: jiraEmail || null,
-        jira_api_token: jiraApiToken || null,
+        jira_base_url: jiraBaseUrl || null, jira_email: jiraEmail || null, jira_api_token: jiraApiToken || null,
         qmetry_api_token: qmetryApiToken || null,
-        aws_access_key_id: awsAccessKeyId || null,
-        aws_secret_access_key: awsSecretAccessKey || null,
-        aws_region: awsRegion || "us-east-1",
-        aws_session_token: awsSessionToken || null,
+        aws_access_key_id: awsAccessKeyId || null, aws_secret_access_key: awsSecretAccessKey || null,
+        aws_region: awsRegion || "us-east-1", aws_session_token: awsSessionToken || null,
       };
       const { error } = await supabase.from("user_api_keys").upsert(payload, { onConflict: "user_id" });
       if (error) throw error;
-      toast({ title: "Sauvegardé", description: "Vos clés API ont été enregistrées." });
+      toast({ title: t.saved, description: t.savedDesc });
     } catch (error: any) {
-      toast({ title: "Erreur", description: error.message, variant: "destructive" });
+      toast({ title: t.error, description: error.message, variant: "destructive" });
     } finally {
       setIsSaving(false);
     }
   };
 
-  const handleLogout = async () => {
-    await signOut();
-    navigate("/login");
-  };
+  const handleLogout = async () => { await signOut(); navigate("/login"); };
 
   const SecretInput = ({ value, onChange, show, onToggle, placeholder, id }: {
     value: string; onChange: (v: string) => void; show: boolean; onToggle: () => void; placeholder: string; id: string;
@@ -115,66 +107,33 @@ const Settings = () => {
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Jira</CardTitle>
-          <CardDescription>Configuration de votre connexion Jira Atlassian</CardDescription>
+          <CardTitle>{t.jira}</CardTitle>
+          <CardDescription>{t.jiraDesc}</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="jiraBaseUrl">URL de base Jira</Label>
-            <Input id="jiraBaseUrl" value={jiraBaseUrl} onChange={(e) => setJiraBaseUrl(e.target.value)} placeholder="company.atlassian.net" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="jiraEmail">Email Jira</Label>
-            <Input id="jiraEmail" type="email" value={jiraEmail} onChange={(e) => setJiraEmail(e.target.value)} placeholder="vous@entreprise.com" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="jiraToken">Token API Jira</Label>
-            <SecretInput id="jiraToken" value={jiraApiToken} onChange={setJiraApiToken} show={showJiraToken} onToggle={() => setShowJiraToken(!showJiraToken)} placeholder="Votre token API Jira" />
-          </div>
+          <div className="space-y-2"><Label htmlFor="jiraBaseUrl">{t.jiraBaseUrl}</Label><Input id="jiraBaseUrl" value={jiraBaseUrl} onChange={(e) => setJiraBaseUrl(e.target.value)} placeholder={t.jiraBaseUrlPlaceholder} /></div>
+          <div className="space-y-2"><Label htmlFor="jiraEmail">{t.jiraEmail}</Label><Input id="jiraEmail" type="email" value={jiraEmail} onChange={(e) => setJiraEmail(e.target.value)} placeholder={t.jiraEmailPlaceholder} /></div>
+          <div className="space-y-2"><Label htmlFor="jiraToken">{t.jiraToken}</Label><SecretInput id="jiraToken" value={jiraApiToken} onChange={setJiraApiToken} show={showJiraToken} onToggle={() => setShowJiraToken(!showJiraToken)} placeholder={t.jiraTokenPlaceholder} /></div>
         </CardContent>
       </Card>
-
       <Card>
-        <CardHeader>
-          <CardTitle>QMetry</CardTitle>
-          <CardDescription>Token d'accès à l'API QMetry</CardDescription>
-        </CardHeader>
+        <CardHeader><CardTitle>{t.qmetry}</CardTitle><CardDescription>{t.qmetryDesc}</CardDescription></CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="qmetryToken">Token API QMetry</Label>
-            <SecretInput id="qmetryToken" value={qmetryApiToken} onChange={setQmetryApiToken} show={showQmetryToken} onToggle={() => setShowQmetryToken(!showQmetryToken)} placeholder="Votre token QMetry" />
-          </div>
+          <div className="space-y-2"><Label htmlFor="qmetryToken">{t.qmetryToken}</Label><SecretInput id="qmetryToken" value={qmetryApiToken} onChange={setQmetryApiToken} show={showQmetryToken} onToggle={() => setShowQmetryToken(!showQmetryToken)} placeholder={t.qmetryTokenPlaceholder} /></div>
         </CardContent>
       </Card>
-
       <Card>
-        <CardHeader>
-          <CardTitle>AWS Bedrock</CardTitle>
-          <CardDescription>Credentials AWS pour accéder à Bedrock (temporaires via SSO recommandé)</CardDescription>
-        </CardHeader>
+        <CardHeader><CardTitle>{t.aws}</CardTitle><CardDescription>{t.awsDesc}</CardDescription></CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="awsAccessKey">Access Key ID</Label>
-            <Input id="awsAccessKey" value={awsAccessKeyId} onChange={(e) => setAwsAccessKeyId(e.target.value)} placeholder="AKIA..." />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="awsSecret">Secret Access Key</Label>
-            <SecretInput id="awsSecret" value={awsSecretAccessKey} onChange={setAwsSecretAccessKey} show={showAwsSecret} onToggle={() => setShowAwsSecret(!showAwsSecret)} placeholder="Votre Secret Access Key" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="awsRegion">Région AWS</Label>
-            <Input id="awsRegion" value={awsRegion} onChange={(e) => setAwsRegion(e.target.value)} placeholder="us-east-1" />
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="awsSession">Session Token (optionnel - SSO)</Label>
-            <SecretInput id="awsSession" value={awsSessionToken} onChange={setAwsSessionToken} show={showAwsSession} onToggle={() => setShowAwsSession(!showAwsSession)} placeholder="Token de session temporaire" />
-          </div>
+          <div className="space-y-2"><Label htmlFor="awsAccessKey">{t.awsAccessKey}</Label><Input id="awsAccessKey" value={awsAccessKeyId} onChange={(e) => setAwsAccessKeyId(e.target.value)} placeholder={t.awsAccessKeyPlaceholder} /></div>
+          <div className="space-y-2"><Label htmlFor="awsSecret">{t.awsSecret}</Label><SecretInput id="awsSecret" value={awsSecretAccessKey} onChange={setAwsSecretAccessKey} show={showAwsSecret} onToggle={() => setShowAwsSecret(!showAwsSecret)} placeholder={t.awsSecretPlaceholder} /></div>
+          <div className="space-y-2"><Label htmlFor="awsRegion">{t.awsRegion}</Label><Input id="awsRegion" value={awsRegion} onChange={(e) => setAwsRegion(e.target.value)} placeholder="us-east-1" /></div>
+          <div className="space-y-2"><Label htmlFor="awsSession">{t.awsSession}</Label><SecretInput id="awsSession" value={awsSessionToken} onChange={setAwsSessionToken} show={showAwsSession} onToggle={() => setShowAwsSession(!showAwsSession)} placeholder={t.awsSessionPlaceholder} /></div>
         </CardContent>
       </Card>
-
       <Button onClick={handleSave} disabled={isSaving} className="w-full" size="lg">
         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
-        Enregistrer les paramètres
+        {t.save}
       </Button>
     </div>
   );
@@ -184,36 +143,33 @@ const Settings = () => {
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <Button variant="ghost" onClick={() => navigate("/")}>
-            <ArrowLeft className="h-4 w-4 mr-2" /> Retour
+            <ArrowLeft className="h-4 w-4 mr-2" /> {t.back}
           </Button>
           <div className="flex items-center gap-2">
+            <LanguageSwitcher />
             {isAdmin && (
               <span className="flex items-center gap-1 text-sm text-primary font-medium">
                 <ShieldCheck className="h-4 w-4" /> Admin
               </span>
             )}
             <Button variant="outline" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-2" /> Déconnexion
+              <LogOut className="h-4 w-4 mr-2" /> {t.logout}
             </Button>
           </div>
         </div>
-
-        <h1 className="text-3xl font-bold">Paramètres</h1>
-
+        <h1 className="text-3xl font-bold">{t.title}</h1>
         {isAdmin ? (
           <Tabs defaultValue="mykeys">
             <TabsList className="grid w-full grid-cols-3">
-              <TabsTrigger value="mykeys">Mes Clés API</TabsTrigger>
-              <TabsTrigger value="ai">Agent IA</TabsTrigger>
-              <TabsTrigger value="users">Utilisateurs</TabsTrigger>
+              <TabsTrigger value="mykeys">{t.myKeys}</TabsTrigger>
+              <TabsTrigger value="ai">{t.aiAgent}</TabsTrigger>
+              <TabsTrigger value="users">{t.users}</TabsTrigger>
             </TabsList>
             <TabsContent value="mykeys" className="mt-6">{MyKeysContent}</TabsContent>
             <TabsContent value="ai" className="mt-6"><AIConfigSection /></TabsContent>
             <TabsContent value="users" className="mt-6"><UserManagementSection /></TabsContent>
           </Tabs>
-        ) : (
-          MyKeysContent
-        )}
+        ) : MyKeysContent}
       </div>
     </div>
   );

@@ -10,6 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useToast } from "@/hooks/use-toast";
 import { Shield, Loader2, Eye, EyeOff } from "lucide-react";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
+import { EarnixLogo } from "@/components/EarnixLogo";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -59,10 +60,11 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4 relative">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative">
       <div className="absolute top-4 right-4">
         <LanguageSwitcher />
       </div>
+      <EarnixLogo className="h-10 mb-8" />
       <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-2">
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-primary/10">

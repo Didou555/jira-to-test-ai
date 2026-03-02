@@ -1,7 +1,7 @@
 import { useState } from "react";
-import axios from "axios";
+import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle, Globe, List, ChevronDown, FolderOpen, Pencil } from "lucide-react";
+import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle, Globe, List, ChevronDown, FolderOpen, Pencil, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,19 +25,9 @@ import { FolderTree } from "@/components/FolderTree";
 import { SmartProgressBar } from "@/components/SmartProgressBar";
 import { useToast } from "@/hooks/use-toast";
 import { useLanguage, Language } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { translations } from "@/translations";
-
-axios.defaults.headers.common['ngrok-skip-browser-warning'] = 'true';
-
-// Allow overriding the backend base URL via Vite env var
-// Example: set VITE_API_BASE_URL in .env to your n8n base URL
-const API_BASE_URL = (import.meta as any)?.env?.VITE_API_BASE_URL || "https://superambitious-cohen-roentgenologically.ngrok-free.dev";
-
-// Dev-only diagnostic logging to confirm which backend URL is used
-if ((import.meta as any)?.env?.DEV) {
-  console.log("VITE_API_BASE_URL:", (import.meta as any).env?.VITE_API_BASE_URL);
-  console.log("Effective API_BASE_URL:", API_BASE_URL);
-}
+import { supabase } from "@/integrations/supabase/client";
 
 interface StoryData {
   storyId: string;
@@ -167,6 +157,8 @@ const EditableCell: React.FC<EditableCellProps> = ({
 
 const Index = () => {
   const { language, setLanguage } = useLanguage();
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
   const t = translations[language];
   
   const [jiraUrl, setJiraUrl] = useState("");

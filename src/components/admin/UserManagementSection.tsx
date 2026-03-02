@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Eye, EyeOff, KeyRound } from "lucide-react";
+import { Loader2, Plus, Eye, EyeOff, KeyRound, Save } from "lucide-react";
 
 interface UserProfile {
   id: string;

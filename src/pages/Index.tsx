@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
-import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle, Globe, List, ChevronDown, FolderOpen, Pencil, Settings, LogOut } from "lucide-react";
+import { CheckCircle, Shield, Star, Zap, Loader2, AlertTriangle, List, ChevronDown, FolderOpen, Pencil, Settings, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,12 +13,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Progress } from "@/components/ui/progress";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { StatCard } from "@/components/StatCard";
 import { TimelineStep } from "@/components/TimelineStep";
 import { FolderTree } from "@/components/FolderTree";
@@ -156,7 +151,7 @@ const EditableCell: React.FC<EditableCellProps> = ({
 };
 
 const Index = () => {
-  const { language, setLanguage } = useLanguage();
+  const { language } = useLanguage();
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const t = translations[language];
@@ -742,25 +737,7 @@ const Index = () => {
         <div className="container flex h-16 items-center justify-between px-4">
           <h1 className="text-xl font-bold text-primary">{t.header.title}</h1>
           <div className="flex items-center gap-2">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="gap-2">
-                  <Globe className="h-4 w-4" />
-                  {getLanguageName(language)}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setLanguage("fr")}>
-                  🇫🇷 Français
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLanguage("en")}>
-                  🇬🇧 English
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLanguage("ru")}>
-                  🇷🇺 Русский
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <LanguageSwitcher />
             <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} title="Paramètres">
               <Settings className="h-4 w-4" />
             </Button>

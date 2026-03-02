@@ -54,7 +54,12 @@ serve(async (req) => {
 
     if (createError) throw createError;
 
-    return new Response(JSON.stringify({ userId: newUser.user.id, email }), {
+    // If bootstrap, assign admin role
+    if (isBootstrap) {
+      await supabaseAdmin.from("user_roles").update({ role: "admin" }).eq("user_id", newUser.user.id);
+    }
+
+    return new Response(JSON.stringify({ userId: newUser.user.id, email, isAdmin: isBootstrap }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

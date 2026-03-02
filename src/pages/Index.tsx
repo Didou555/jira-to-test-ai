@@ -271,41 +271,61 @@ const Index = () => {
     setUpdateMode(false);
 
     try {
-      const issueKey = jiraUrl.split('/').pop();
-      
-      const checkResponse = await axios.post(`${API_BASE_URL}/webhook/check-existing-testplan`, {
-        issueKey: issueKey,
+      // Read story from Jira to check for existing subtask
+      const { data: storyResult, error: storyError } = await supabase.functions.invoke("read-jira-story", {
+        body: { jiraUrl },
       });
 
-      if (checkResponse.data.exists) {
+      if (storyError) throw new Error(storyError.message || "Failed to read Jira story");
+
+      if (storyResult.existingSubtask) {
         setExistingTestPlan({
-          subtaskKey: checkResponse.data.subtaskKey,
-          subtaskUrl: checkResponse.data.subtaskUrl,
-          summary: checkResponse.data.summary,
-          created: checkResponse.data.created,
-          currentTestPlan: checkResponse.data.testPlanContent,
+          subtaskKey: storyResult.existingSubtask.key,
+          subtaskUrl: `https://${jiraUrl.split("/browse/")[0].replace("https://", "")}/browse/${storyResult.existingSubtask.key}`,
+          summary: storyResult.existingSubtask.summary,
+          created: "",
+          currentTestPlan: JSON.stringify(storyResult.existingSubtask.description),
+        });
+        // Store story data for later use
+        setStoryData({
+          storyId: storyResult.storyId,
+          storyTitle: storyResult.storyTitle,
+          projectKey: storyResult.projectKey,
         });
         setIsCheckingExisting(false);
         return;
       }
 
+      // No existing subtask, store context and generate
+      setStoryData({
+        storyId: storyResult.storyId,
+        storyTitle: storyResult.storyTitle,
+        projectKey: storyResult.projectKey,
+      });
       setIsCheckingExisting(false);
-      await generateTestPlan(false);
+      await generateTestPlan(false, storyResult);
     } catch (error) {
       console.error("Erreur:", error);
+      toast({
+        title: "Erreur",
+        description: error instanceof Error ? error.message : "Erreur lors de la lecture de la story",
+        variant: "destructive",
+      });
       setIsCheckingExisting(false);
-      await generateTestPlan(false);
     }
   };
 
+  // Store story context for reuse
+  const [storyContextData, setStoryContextData] = useState<any>(null);
+
   const handleUpdateExisting = async () => {
     setUpdateMode(true);
-    await generateTestPlan(true);
+    await generateTestPlan(true, storyContextData);
   };
 
   const handleCreateNew = async () => {
     setUpdateMode(false);
-    await generateTestPlan(false);
+    await generateTestPlan(false, storyContextData);
   };
 
   const generateTestPlan = async (isUpdate: boolean) => {

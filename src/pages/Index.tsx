@@ -731,8 +731,11 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="sticky top-0 z-50 w-full border-b bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/60">
-        <div className="container flex h-16 items-center justify-between px-4">
-          <EarnixLogo className="h-8" />
+        <div className="container flex h-16 items-center px-4">
+          <h1 className="text-lg font-bold text-foreground whitespace-nowrap">QA Agent AI - POC</h1>
+          <div className="flex-1 flex justify-center">
+            <EarnixLogo className="h-8" />
+          </div>
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
             <Button variant="ghost" size="icon" onClick={() => navigate("/settings")} title="Paramètres">

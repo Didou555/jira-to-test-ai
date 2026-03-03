@@ -1,7 +1,12 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 140 32" fill="none">
-  <!-- X mark -->
-  <line x1="2" y1="6" x2="12" y2="16" stroke="#E8542E" stroke-width="2.8" stroke-linecap="round"/>
-  <line x1="12" y1="6" x2="2" y2="16" stroke="#E8542E" stroke-width="2.8" stroke-linecap="round"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 40" fill="none">
+  <!-- Earnix logo matching earnix.com style -->
+  <!-- Double-cross X icon -->
+  <g transform="translate(4, 8)">
+    <line x1="0" y1="0" x2="10" y2="12" stroke="#E8542E" stroke-width="3" stroke-linecap="round"/>
+    <line x1="10" y1="0" x2="0" y2="12" stroke="#E8542E" stroke-width="3" stroke-linecap="round"/>
+    <line x1="5" y1="6" x2="15" y2="18" stroke="#E8542E" stroke-width="3" stroke-linecap="round"/>
+    <line x1="15" y1="6" x2="5" y2="18" stroke="#E8542E" stroke-width="3" stroke-linecap="round"/>
+  </g>
   <!-- earnix text -->
-  <text x="20" y="22" font-family="'DM Sans', Arial, Helvetica, sans-serif" font-size="22" font-weight="700" fill="#1A2340" letter-spacing="0.3">earnix</text>
+  <text x="28" y="28" font-family="'DM Sans', Arial, Helvetica, sans-serif" font-size="26" font-weight="700" fill="#1A2340" letter-spacing="0.5">earnix</text>
 </svg>

@@ -13,7 +13,8 @@ serve(async (req) => {
     );
 
     const { email, password, displayName } = await req.json();
-    if (!email || !password) throw new Error("email and password required");
+    const finalPassword = password || "abc123";
+    if (!email) throw new Error("email is required");
 
     // Check if any admin exists
     const { data: existingAdmins } = await supabaseAdmin
@@ -47,7 +48,7 @@ serve(async (req) => {
     // Create user with auto-confirm
     const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
       email,
-      password,
+      password: finalPassword,
       email_confirm: true,
       user_metadata: { display_name: displayName || email.split("@")[0] },
     });

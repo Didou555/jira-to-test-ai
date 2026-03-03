@@ -23,7 +23,6 @@ export const UserManagementSection = () => {
   const [showAddUser, setShowAddUser] = useState(false);
   const [showApiKeys, setShowApiKeys] = useState<string | null>(null);
   const [newEmail, setNewEmail] = useState("");
-  const [newPassword, setNewPassword] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
 
@@ -59,18 +58,17 @@ export const UserManagementSection = () => {
   };
 
   const handleCreateUser = async () => {
-    if (!newEmail || !newPassword) return;
+    if (!newEmail) return;
     setIsCreating(true);
     try {
       const { data, error } = await supabase.functions.invoke("create-admin", {
-        body: { email: newEmail, password: newPassword, displayName: newDisplayName || undefined },
+        body: { email: newEmail, displayName: newDisplayName || undefined },
       });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
       toast({ title: "Utilisateur créé", description: `${newEmail} a été créé avec succès.` });
       setShowAddUser(false);
       setNewEmail("");
-      setNewPassword("");
       setNewDisplayName("");
       // Reload users after a short delay (profile trigger)
       setTimeout(() => loadUsers(), 1500);
@@ -216,10 +214,7 @@ export const UserManagementSection = () => {
               <Label>Email</Label>
               <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder="user@entreprise.com" />
             </div>
-            <div className="space-y-2">
-              <Label>Mot de passe</Label>
-              <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Mot de passe" />
-            </div>
+            <p className="text-xs text-muted-foreground">Le mot de passe par défaut sera : <strong>abc123</strong></p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddUser(false)}>Annuler</Button>

@@ -1,11 +1,14 @@
-import earnixLogo from "@/assets/earnix-logo.svg";
+import earnixIcon from "@/assets/earnix-icon.png";
 
 interface EarnixLogoProps {
   className?: string;
 }
 
 export const EarnixLogo = ({ className = "h-10" }: EarnixLogoProps) => (
-  <div className={`flex items-center justify-center ${className}`}>
-    <img src={earnixLogo} alt="Earnix" className="h-full w-auto" />
+  <div className={`flex items-center gap-2 ${className}`}>
+    <img src={earnixIcon} alt="Earnix" className="h-full w-auto" />
+    <span className="font-bold text-xl tracking-wide text-foreground" style={{ fontFamily: "'DM Sans', sans-serif" }}>
+      earnix
+    </span>
   </div>
 );

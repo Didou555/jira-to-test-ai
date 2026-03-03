@@ -61,6 +61,9 @@ const Login = () => {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background p-4 relative">
+      <div className="absolute top-4 left-4">
+        <h1 className="text-lg font-bold text-foreground">QA Agent AI - POC</h1>
+      </div>
       <div className="absolute top-4 right-4">
         <LanguageSwitcher />
       </div>

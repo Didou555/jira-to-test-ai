@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Loader2, Save, Eye, EyeOff, LogOut, ShieldCheck } from "lucide-react";
 import { AIConfigSection } from "@/components/admin/AIConfigSection";
 import { UserManagementSection } from "@/components/admin/UserManagementSection";
+import { ChangePasswordCard } from "@/components/ChangePasswordCard";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { EarnixLogo } from "@/components/EarnixLogo";
 
@@ -188,6 +189,7 @@ const Settings = () => {
         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
         {t.save}
       </Button>
+      <ChangePasswordCard />
     </div>
   );
 

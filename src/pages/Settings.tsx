@@ -72,7 +72,7 @@ const Settings = () => {
 
   const loadApiKeys = async () => {
     try {
-      const { data, error } = await invokeWithRetry("manage-api-keys", { action: "read" });
+      const { data, error } = await invokeWithRetry<Record<string, string | null>>("manage-api-keys", { action: "read" });
       if (error) throw error;
       if (data) {
         setJiraBaseUrl(data.jira_base_url || "");

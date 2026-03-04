@@ -2,6 +2,13 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
+function generateSecurePassword(): string {
+  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  return Array.from(array, (byte) => charset[byte % charset.length]).join('');
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
@@ -13,7 +20,7 @@ serve(async (req) => {
     );
 
     const { email, password, displayName } = await req.json();
-    const finalPassword = password || "abc123";
+    const finalPassword = password || generateSecurePassword();
     if (!email) throw new Error("email is required");
 
     // Check if any admin exists
@@ -60,7 +67,12 @@ serve(async (req) => {
       await supabaseAdmin.from("user_roles").update({ role: "admin" }).eq("user_id", newUser.user.id);
     }
 
-    return new Response(JSON.stringify({ userId: newUser.user.id, email, isAdmin: isBootstrap }), {
+    return new Response(JSON.stringify({ 
+      userId: newUser.user.id, 
+      email, 
+      isAdmin: isBootstrap,
+      temporaryPassword: finalPassword,
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {

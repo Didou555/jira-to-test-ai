@@ -66,7 +66,14 @@ export const UserManagementSection = () => {
       });
       if (error) throw new Error(error.message);
       if (data?.error) throw new Error(data.error);
-      toast({ title: t.userCreated, description: `${newEmail} ${t.userCreatedDesc}` });
+      const tempPwd = data?.temporaryPassword;
+      toast({ 
+        title: t.userCreated, 
+        description: tempPwd 
+          ? `${newEmail} — ${t.temporaryPassword}: ${tempPwd}` 
+          : `${newEmail} ${t.userCreatedDesc}`,
+        duration: 15000,
+      });
       setShowAddUser(false);
       setNewEmail("");
       setNewDisplayName("");
@@ -217,7 +224,7 @@ export const UserManagementSection = () => {
               <Label>{t.email}</Label>
               <Input type="email" value={newEmail} onChange={(e) => setNewEmail(e.target.value)} placeholder={t.emailPlaceholder} />
             </div>
-            <p className="text-xs text-muted-foreground">{t.defaultPassword} <strong>abc123</strong></p>
+            <p className="text-xs text-muted-foreground">{t.defaultPassword}</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowAddUser(false)}>{t.cancel}</Button>

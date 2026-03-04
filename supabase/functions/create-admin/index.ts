@@ -2,12 +2,7 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-function generateSecurePassword(): string {
-  const charset = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-  const array = new Uint8Array(16);
-  crypto.getRandomValues(array);
-  return Array.from(array, (byte) => charset[byte % charset.length]).join('');
-}
+const DEFAULT_TEMPORARY_PASSWORD = "abc123";
 
 serve(async (req) => {
   const origin = req.headers.get("Origin");
@@ -23,7 +18,7 @@ serve(async (req) => {
     );
 
     const { email, password, displayName } = await req.json();
-    const finalPassword = password || generateSecurePassword();
+    const finalPassword = password || DEFAULT_TEMPORARY_PASSWORD;
     if (!email) throw new Error("email is required");
 
     // Check if any admin exists

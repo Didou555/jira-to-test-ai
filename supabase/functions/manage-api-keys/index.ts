@@ -3,6 +3,19 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { encryptApiKeys, decryptApiKeys } from "../_shared/crypto.ts";
 
+function getUserIdFromJwt(authHeader: string): string {
+  const token = authHeader.replace("Bearer ", "");
+  const parts = token.split(".");
+  if (parts.length !== 3) throw new Error("Invalid JWT");
+  const payload = JSON.parse(atob(parts[1]));
+  if (!payload.sub) throw new Error("No sub in JWT");
+  // Check expiration
+  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
+    throw new Error("JWT expired");
+  }
+  return payload.sub;
+}
+
 serve(async (req) => {
   const origin = req.headers.get("Origin");
   const corsHeaders = getCorsHeaders(origin);
@@ -15,14 +28,8 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Missing Authorization header");
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    if (authError || !user) throw new Error("Unauthorized");
+    // Extract user ID directly from JWT to avoid unreliable getUser() network call
+    const userId = getUserIdFromJwt(authHeader);
 
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL")!,
@@ -30,14 +37,14 @@ serve(async (req) => {
     );
 
     const body = await req.json();
-    const action = body.action || "save"; // "read" or "save"
+    const action = body.action || "save";
 
     if (action === "read") {
-      const targetUserId = body.userId || user.id;
+      const targetUserId = body.userId || userId;
 
-      if (targetUserId !== user.id) {
+      if (targetUserId !== userId) {
         const { data: isAdmin } = await serviceClient.rpc("has_role", {
-          _user_id: user.id,
+          _user_id: userId,
           _role: "admin",
         });
         if (!isAdmin) throw new Error("Forbidden");
@@ -64,11 +71,11 @@ serve(async (req) => {
     }
 
     // action === "save"
-    const targetUserId = body.user_id || user.id;
+    const targetUserId = body.user_id || userId;
 
-    if (targetUserId !== user.id) {
+    if (targetUserId !== userId) {
       const { data: isAdmin } = await serviceClient.rpc("has_role", {
-        _user_id: user.id,
+        _user_id: userId,
         _role: "admin",
       });
       if (!isAdmin) throw new Error("Forbidden");

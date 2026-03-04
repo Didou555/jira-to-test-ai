@@ -1,6 +1,7 @@
 const ALLOWED_ORIGINS = [
   "https://jira-to-test-ai.lovable.app",
   "https://id-preview--38d6b3aa-8ccb-4639-9984-97aa1f0f3e9d.lovable.app",
+  "https://38d6b3aa-8ccb-4639-9984-97aa1f0f3e9d.lovableproject.com",
   "http://localhost:5173",
   "http://localhost:8080",
   ...(Deno.env.get("FRONTEND_URL") ? [Deno.env.get("FRONTEND_URL")!] : []),

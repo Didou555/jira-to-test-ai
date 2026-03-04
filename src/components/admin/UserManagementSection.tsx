@@ -191,7 +191,7 @@ export const UserManagementSection = () => {
                 <TableRow key={u.id}>
                   <TableCell>{u.display_name || u.username || "—"}</TableCell>
                   <TableCell>{u.username || "—"}</TableCell>
-                  <TableCell className="space-x-2">
+                  <TableCell className="flex items-center justify-between">
                     <Button size="sm" variant="outline" onClick={() => openApiKeys(u.user_id)}>
                       <KeyRound className="h-4 w-4 mr-1" /> {t.apiKeys}
                     </Button>

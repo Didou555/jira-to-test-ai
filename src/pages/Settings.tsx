@@ -86,9 +86,7 @@ const Settings = () => {
         aws_access_key_id: awsAccessKeyId || null, aws_secret_access_key: awsSecretAccessKey || null,
         aws_region: awsRegion || "us-east-1", aws_session_token: awsSessionToken || null,
       };
-      const { error } = await supabase.functions.invoke("manage-api-keys", {
-        body: payload,
-      });
+      const { error } = await invokeWithRetry("manage-api-keys", payload);
       if (error) throw error;
       toast({ title: t.saved, description: t.savedDesc });
     } catch (error: any) {

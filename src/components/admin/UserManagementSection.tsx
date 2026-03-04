@@ -109,8 +109,7 @@ export const UserManagementSection = () => {
     setShowApiKeys(userId);
     try {
       const { data, error } = await supabase.functions.invoke("manage-api-keys", {
-        method: "GET",
-        body: { userId },
+        body: { action: "read", userId },
       });
       if (error) throw error;
       if (data) {

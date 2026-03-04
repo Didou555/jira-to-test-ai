@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Plus, Eye, EyeOff, KeyRound, Save, Trash2 } from "lucide-react";
+import { Loader2, Plus, Eye, EyeOff, KeyRound, Save, Trash2, RotateCcw } from "lucide-react";
 
 interface UserProfile {
   id: string;
@@ -31,6 +31,9 @@ export const UserManagementSection = () => {
   const [showApiKeys, setShowApiKeys] = useState<string | null>(null);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<UserProfile | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showResetPassword, setShowResetPassword] = useState<UserProfile | null>(null);
+  const [resetNewPassword, setResetNewPassword] = useState("");
+  const [isResetting, setIsResetting] = useState(false);
   const [newEmail, setNewEmail] = useState("");
   const [newDisplayName, setNewDisplayName] = useState("");
   const [isCreating, setIsCreating] = useState(false);
@@ -195,9 +198,12 @@ export const UserManagementSection = () => {
                 <TableRow key={u.id}>
                   <TableCell>{u.display_name || u.username || "—"}</TableCell>
                   <TableCell>{u.username || "—"}</TableCell>
-                  <TableCell className="flex items-center justify-between">
+                  <TableCell className="flex items-center gap-2">
                     <Button size="sm" variant="outline" onClick={() => openApiKeys(u.user_id)}>
                       <KeyRound className="h-4 w-4 mr-1" /> {t.apiKeys}
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={() => { setShowResetPassword(u); setResetNewPassword(""); }}>
+                      <RotateCcw className="h-4 w-4 mr-1" /> {t.resetPassword}
                     </Button>
                     {u.user_id !== currentUser?.id && (
                       <Button size="sm" variant="destructive" onClick={() => setShowDeleteConfirm(u)}>
@@ -256,6 +262,57 @@ export const UserManagementSection = () => {
             <Button variant="destructive" onClick={handleDeleteUser} disabled={isDeleting}>
               {isDeleting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Trash2 className="mr-2 h-4 w-4" />}
               {isDeleting ? t.deleting : t.delete}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reset Password Dialog */}
+      <Dialog open={!!showResetPassword} onOpenChange={() => setShowResetPassword(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{t.resetPasswordTitle}</DialogTitle>
+            <DialogDescription>
+              {t.resetPasswordDesc}
+              <br />
+              <strong className="mt-2 block">{showResetPassword?.display_name || showResetPassword?.username}</strong>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>{t.newPasswordLabel}</Label>
+              <Input
+                type="password"
+                value={resetNewPassword}
+                onChange={(e) => setResetNewPassword(e.target.value)}
+                placeholder="Min. 12 caractères"
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowResetPassword(null)}>{t.cancel}</Button>
+            <Button
+              onClick={async () => {
+                if (!showResetPassword || !resetNewPassword) return;
+                setIsResetting(true);
+                try {
+                  const { data, error } = await supabase.functions.invoke("reset-password", {
+                    body: { userId: showResetPassword.user_id, newPassword: resetNewPassword },
+                  });
+                  if (error) throw new Error(error.message);
+                  if (data?.error) throw new Error(data.error);
+                  toast({ title: t.resetPasswordSuccess, description: t.resetPasswordSuccessDesc });
+                  setShowResetPassword(null);
+                } catch (e: any) {
+                  toast({ title: t.error, description: e.message, variant: "destructive" });
+                } finally {
+                  setIsResetting(false);
+                }
+              }}
+              disabled={isResetting || !resetNewPassword}
+            >
+              {isResetting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <RotateCcw className="mr-2 h-4 w-4" />}
+              {isResetting ? t.resetting : t.reset}
             </Button>
           </DialogFooter>
         </DialogContent>

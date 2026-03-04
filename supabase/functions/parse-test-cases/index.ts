@@ -1,10 +1,19 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { corsHeaders } from "../_shared/cors.ts";
+import { getSupabaseClient } from "../_shared/supabase-helpers.ts";
 
 serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {
+    // Authenticate the caller
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) throw new Error("Missing authorization header");
+
+    const supabase = getSupabaseClient(authHeader);
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) throw new Error("Unauthorized");
+
     const { testPlan } = await req.json();
     if (!testPlan) throw new Error("testPlan is required");
 
@@ -54,9 +63,10 @@ serve(async (req) => {
     );
   } catch (error) {
     console.error("parse-test-cases error:", error);
+    const status = error instanceof Error && error.message === "Unauthorized" ? 401 : 400;
     return new Response(
       JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      { status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
 });

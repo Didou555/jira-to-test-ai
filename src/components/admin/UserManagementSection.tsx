@@ -108,7 +108,9 @@ export const UserManagementSection = () => {
     setApiKeysUserId(userId);
     setShowApiKeys(userId);
     try {
-      const { data, error } = await supabase.from("user_api_keys").select("*").eq("user_id", userId).maybeSingle();
+      const { data, error } = await supabase.functions.invoke("manage-api-keys", {
+        body: { action: "read", userId },
+      });
       if (error) throw error;
       if (data) {
         setApiKeys({
@@ -136,7 +138,9 @@ export const UserManagementSection = () => {
         aws_access_key_id: apiKeys.aws_access_key_id || null, aws_secret_access_key: apiKeys.aws_secret_access_key || null,
         aws_region: apiKeys.aws_region || "us-east-1", aws_session_token: apiKeys.aws_session_token || null,
       };
-      const { error } = await supabase.from("user_api_keys").upsert(payload, { onConflict: "user_id" });
+      const { error } = await supabase.functions.invoke("manage-api-keys", {
+        body: payload,
+      });
       if (error) throw error;
       toast({ title: t.saved, description: t.savedDesc });
       setShowApiKeys(null);

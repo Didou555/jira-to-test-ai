@@ -1,4 +1,5 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { decryptApiKeys } from "./crypto.ts";
 
 export function getSupabaseClient(authHeader: string) {
   return createClient(
@@ -21,5 +22,7 @@ export async function getUserApiKeys(supabase: ReturnType<typeof createClient>, 
     throw new Error("API keys not configured. Please go to Settings to add your credentials.");
   }
 
-  return data;
+  // Decrypt sensitive fields transparently
+  const decrypted = await decryptApiKeys(data as Record<string, string | null>);
+  return decrypted;
 }

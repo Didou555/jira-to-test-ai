@@ -41,22 +41,38 @@ const Settings = () => {
 
   useEffect(() => { if (user) loadApiKeys(); }, [user]);
 
-  const invokeWithRetry = async (fnName: string, body: Record<string, unknown>, retries = 2) => {
+  const invokeWithRetry = async <T = unknown>(fnName: string, body: Record<string, unknown>, retries = 2): Promise<{ data: T | null; error: Error | null }> => {
+    let lastError: Error | null = null;
+
     for (let attempt = 0; attempt <= retries; attempt++) {
-      const { data, error } = await supabase.functions.invoke(fnName, { body });
-      if (!error) return { data, error: null };
-      if (attempt < retries) {
-        await new Promise((r) => setTimeout(r, 1000));
-        continue;
+      try {
+        const { data, error } = await supabase.functions.invoke<T>(fnName, { body });
+
+        if (!error) {
+          return { data: (data ?? null) as T | null, error: null };
+        }
+
+        lastError = new Error(error.message || "Failed to send request to the edge function");
+      } catch (err) {
+        lastError = err instanceof Error
+          ? err
+          : new Error("Failed to send request to the edge function");
       }
-      return { data: null, error };
+
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      }
     }
-    return { data: null, error: new Error("Unexpected") };
+
+    return {
+      data: null,
+      error: lastError ?? new Error("Failed to send request to the edge function"),
+    };
   };
 
   const loadApiKeys = async () => {
     try {
-      const { data, error } = await invokeWithRetry("manage-api-keys", { action: "read" });
+      const { data, error } = await invokeWithRetry<Record<string, string | null>>("manage-api-keys", { action: "read" });
       if (error) throw error;
       if (data) {
         setJiraBaseUrl(data.jira_base_url || "");

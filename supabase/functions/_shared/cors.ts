@@ -1,4 +1,5 @@
 const ALLOWED_ORIGINS = [
+  "https://qa-ai-agent.lovable.app",
   "https://jira-to-test-ai.lovable.app",
   "https://id-preview--38d6b3aa-8ccb-4639-9984-97aa1f0f3e9d.lovable.app",
   "https://38d6b3aa-8ccb-4639-9984-97aa1f0f3e9d.lovableproject.com",

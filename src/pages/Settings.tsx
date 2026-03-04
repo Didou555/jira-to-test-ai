@@ -43,7 +43,9 @@ const Settings = () => {
 
   const loadApiKeys = async () => {
     try {
-      const { data, error } = await supabase.from("user_api_keys").select("*").eq("user_id", user!.id).maybeSingle();
+      const { data, error } = await supabase.functions.invoke("manage-api-keys", {
+        method: "GET",
+      });
       if (error) throw error;
       if (data) {
         setJiraBaseUrl(data.jira_base_url || "");
@@ -73,7 +75,9 @@ const Settings = () => {
         aws_access_key_id: awsAccessKeyId || null, aws_secret_access_key: awsSecretAccessKey || null,
         aws_region: awsRegion || "us-east-1", aws_session_token: awsSessionToken || null,
       };
-      const { error } = await supabase.from("user_api_keys").upsert(payload, { onConflict: "user_id" });
+      const { error } = await supabase.functions.invoke("manage-api-keys", {
+        body: payload,
+      });
       if (error) throw error;
       toast({ title: t.saved, description: t.savedDesc });
     } catch (error: any) {

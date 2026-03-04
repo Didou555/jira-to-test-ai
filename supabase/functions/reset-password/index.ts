@@ -10,29 +10,33 @@ serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) throw new Error("Authorization required");
 
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL")!,
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify caller is admin
-    const callerClient = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-    const { data: { user: caller } } = await callerClient.auth.getUser();
-    if (!caller) throw new Error("Unauthorized");
+    // Verify caller is admin (if auth header present)
+    if (authHeader) {
+      const callerClient = createClient(
+        Deno.env.get("SUPABASE_URL")!,
+        Deno.env.get("SUPABASE_ANON_KEY")!,
+        { global: { headers: { Authorization: authHeader } } }
+      );
+      const { data: { user: caller } } = await callerClient.auth.getUser();
+      if (!caller) throw new Error("Unauthorized");
 
-    const { data: roleData } = await supabaseAdmin
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", caller.id)
-      .eq("role", "admin")
-      .maybeSingle();
-    if (!roleData) throw new Error("Only admins can reset passwords");
+      const { data: roleData } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", caller.id)
+        .eq("role", "admin")
+        .maybeSingle();
+      if (!roleData) throw new Error("Only admins can reset passwords");
+    } else {
+      // No auth header - only allow from service role (internal calls)
+      throw new Error("Authorization required");
+    }
 
     const { userId, newPassword } = await req.json();
     if (!userId || !newPassword) throw new Error("userId and newPassword are required");

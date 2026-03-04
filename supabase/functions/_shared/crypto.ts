@@ -20,14 +20,7 @@ function decodeBase64Flexible(input: string): Uint8Array {
 function decodeKey(rawKey: string): Uint8Array {
   const cleaned = rawKey.trim();
 
-  // 1) base64/base64url (recommended)
-  try {
-    return decodeBase64Flexible(cleaned);
-  } catch {
-    // continue to other formats
-  }
-
-  // 2) hex (64 chars = 32 bytes)
+  // 1) hex (64 chars = 32 bytes) - check first to avoid base64 ambiguity
   if (/^[0-9a-fA-F]{64}$/.test(cleaned)) {
     const bytes = new Uint8Array(AES_256_KEY_BYTES);
     for (let i = 0; i < AES_256_KEY_BYTES; i++) {
@@ -36,13 +29,20 @@ function decodeKey(rawKey: string): Uint8Array {
     return bytes;
   }
 
+  // 2) base64/base64url (recommended)
+  try {
+    return decodeBase64Flexible(cleaned);
+  } catch {
+    // continue to other formats
+  }
+
   // 3) raw 32-char string fallback
   if (cleaned.length === AES_256_KEY_BYTES) {
     return new TextEncoder().encode(cleaned);
   }
 
   throw new Error(
-    "Invalid ENCRYPTION_KEY format. Provide a 32-byte key as base64 (recommended), base64url, hex(64), or raw 32 chars."
+    "Invalid ENCRYPTION_KEY format. Provide a 32-byte key as hex(64), base64 (recommended), base64url, or raw 32 chars."
   );
 }
 

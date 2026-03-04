@@ -18,7 +18,7 @@ serve(async (req) => {
     );
 
     const { email, password, displayName } = await req.json();
-    const finalPassword = password || generateSecurePassword();
+    const finalPassword = password || DEFAULT_TEMPORARY_PASSWORD;
     if (!email) throw new Error("email is required");
 
     // Check if any admin exists

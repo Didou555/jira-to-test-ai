@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { corsHeaders } from "../_shared/cors.ts";
+import { getCorsHeaders } from "../_shared/cors.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 function generateSecurePassword(): string {
@@ -10,6 +10,9 @@ function generateSecurePassword(): string {
 }
 
 serve(async (req) => {
+  const origin = req.headers.get("Origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
 
   try {

@@ -3,17 +3,24 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { getCorsHeaders } from "../_shared/cors.ts";
 import { encryptApiKeys, decryptApiKeys } from "../_shared/crypto.ts";
 
-function getUserIdFromJwt(authHeader: string): string {
-  const token = authHeader.replace("Bearer ", "");
-  const parts = token.split(".");
-  if (parts.length !== 3) throw new Error("Invalid JWT");
-  const payload = JSON.parse(atob(parts[1]));
-  if (!payload.sub) throw new Error("No sub in JWT");
-  // Check expiration
-  if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-    throw new Error("JWT expired");
+async function getAuthenticatedUserId(authHeader: string): Promise<string> {
+  const userClient = createClient(
+    Deno.env.get("SUPABASE_URL")!,
+    Deno.env.get("SUPABASE_ANON_KEY")!,
+    { global: { headers: { Authorization: authHeader } } }
+  );
+
+  // Retry once to handle cold-start latency
+  for (let attempt = 0; attempt < 2; attempt++) {
+    const { data: { user }, error } = await userClient.auth.getUser();
+    if (user) return user.id;
+    if (attempt === 0 && error) {
+      await new Promise((r) => setTimeout(r, 500));
+      continue;
+    }
+    throw new Error(error?.message || "Unauthorized");
   }
-  return payload.sub;
+  throw new Error("Unauthorized");
 }
 
 serve(async (req) => {
@@ -28,8 +35,8 @@ serve(async (req) => {
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) throw new Error("Missing Authorization header");
 
-    // Extract user ID directly from JWT to avoid unreliable getUser() network call
-    const userId = getUserIdFromJwt(authHeader);
+    // Verify JWT signature via Supabase Auth server
+    const userId = await getAuthenticatedUserId(authHeader);
 
     const serviceClient = createClient(
       Deno.env.get("SUPABASE_URL")!,

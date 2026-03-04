@@ -16,7 +16,6 @@ serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify caller is admin (if auth header present)
     if (authHeader) {
       const callerClient = createClient(
         Deno.env.get("SUPABASE_URL")!,
@@ -34,7 +33,6 @@ serve(async (req) => {
         .maybeSingle();
       if (!roleData) throw new Error("Only admins can reset passwords");
     } else {
-      // No auth header - only allow from service role (internal calls)
       throw new Error("Authorization required");
     }
 
@@ -46,7 +44,6 @@ serve(async (req) => {
     });
     if (error) throw error;
 
-    // Set must_change_password flag
     await supabaseAdmin
       .from("profiles")
       .update({ must_change_password: true })

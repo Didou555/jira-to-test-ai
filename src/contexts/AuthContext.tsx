@@ -20,12 +20,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
 
+  const isRefreshTokenError = (error: unknown) => {
+    if (!error) return false;
+    const message = (error as { message?: string }).message?.toLowerCase() ?? "";
+    const code = (error as { code?: string }).code?.toLowerCase() ?? "";
+    return code === "refresh_token_not_found" || message.includes("refresh token") || message.includes("invalid jwt");
+  };
+
+  const clearBrokenSession = async () => {
+    await supabase.auth.signOut({ scope: "local" });
+    setSession(null);
+    setUser(null);
+    setIsAdmin(false);
+  };
+
   const checkAdminRole = async (userId: string) => {
-    const { data } = await supabase.rpc("has_role", {
-      _user_id: userId,
-      _role: "admin",
-    });
-    setIsAdmin(!!data);
+    try {
+      const { data } = await supabase.rpc("has_role", {
+        _user_id: userId,
+        _role: "admin",
+      });
+      setIsAdmin(!!data);
+    } catch {
+      setIsAdmin(false);
+    }
   };
 
   useEffect(() => {
@@ -35,19 +53,27 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         setUser(session?.user ?? null);
         setLoading(false);
         if (session?.user) {
-          setTimeout(() => checkAdminRole(session.user.id), 0);
+          setTimeout(() => {
+            void checkAdminRole(session.user.id);
+          }, 0);
         } else {
           setIsAdmin(false);
         }
       }
     );
 
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session }, error }) => {
+      if (error && isRefreshTokenError(error)) {
+        await clearBrokenSession();
+        setLoading(false);
+        return;
+      }
+
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
       if (session?.user) {
-        checkAdminRole(session.user.id);
+        void checkAdminRole(session.user.id);
       }
     });
 

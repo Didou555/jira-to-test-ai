@@ -41,6 +41,17 @@ const Settings = () => {
 
   useEffect(() => { if (user) loadApiKeys(); }, [user]);
 
+  const isSessionError = (error: unknown) => {
+    const message = error instanceof Error ? error.message.toLowerCase() : "";
+    return message.includes("refresh token") || message.includes("jwt") || message.includes("session");
+  };
+
+  const handleSessionExpired = async () => {
+    await signOut();
+    toast({ title: t.error, description: "Your session expired. Please sign in again.", variant: "destructive" });
+    navigate("/login");
+  };
+
   const invokeWithRetry = async <T = unknown>(fnName: string, body: Record<string, unknown>, retries = 2): Promise<{ data: T | null; error: Error | null }> => {
     let lastError: Error | null = null;
 
@@ -57,6 +68,10 @@ const Settings = () => {
         lastError = err instanceof Error
           ? err
           : new Error("Failed to send request to the edge function");
+      }
+
+      if (lastError && isSessionError(lastError)) {
+        break;
       }
 
       if (attempt < retries) {
@@ -85,6 +100,10 @@ const Settings = () => {
         setAwsSessionToken(data.aws_session_token || "");
       }
     } catch (error: any) {
+      if (isSessionError(error)) {
+        await handleSessionExpired();
+        return;
+      }
       toast({ title: t.error, description: error.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
@@ -106,6 +125,10 @@ const Settings = () => {
       if (error) throw error;
       toast({ title: t.saved, description: t.savedDesc });
     } catch (error: any) {
+      if (isSessionError(error)) {
+        await handleSessionExpired();
+        return;
+      }
       toast({ title: t.error, description: error.message, variant: "destructive" });
     } finally {
       setIsSaving(false);

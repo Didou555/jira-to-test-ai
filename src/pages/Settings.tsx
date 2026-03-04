@@ -41,11 +41,22 @@ const Settings = () => {
 
   useEffect(() => { if (user) loadApiKeys(); }, [user]);
 
+  const invokeWithRetry = async (fnName: string, body: Record<string, unknown>, retries = 2) => {
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const { data, error } = await supabase.functions.invoke(fnName, { body });
+      if (!error) return { data, error: null };
+      if (attempt < retries) {
+        await new Promise((r) => setTimeout(r, 1000));
+        continue;
+      }
+      return { data: null, error };
+    }
+    return { data: null, error: new Error("Unexpected") };
+  };
+
   const loadApiKeys = async () => {
     try {
-      const { data, error } = await supabase.functions.invoke("manage-api-keys", {
-        body: { action: "read" },
-      });
+      const { data, error } = await invokeWithRetry("manage-api-keys", { action: "read" });
       if (error) throw error;
       if (data) {
         setJiraBaseUrl(data.jira_base_url || "");
@@ -75,9 +86,7 @@ const Settings = () => {
         aws_access_key_id: awsAccessKeyId || null, aws_secret_access_key: awsSecretAccessKey || null,
         aws_region: awsRegion || "us-east-1", aws_session_token: awsSessionToken || null,
       };
-      const { error } = await supabase.functions.invoke("manage-api-keys", {
-        body: payload,
-      });
+      const { error } = await invokeWithRetry("manage-api-keys", payload);
       if (error) throw error;
       toast({ title: t.saved, description: t.savedDesc });
     } catch (error: any) {

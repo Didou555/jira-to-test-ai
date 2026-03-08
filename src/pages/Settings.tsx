@@ -190,9 +190,9 @@ const Settings = () => {
         </CardContent>
       </Card>
       <Card>
-        <CardHeader><CardTitle>{t.figma || "Figma"}</CardTitle><CardDescription>{t.figmaDesc || "Personal Access Token for Figma design integration"}</CardDescription></CardHeader>
+        <CardHeader><CardTitle>{(t as any).figma || "Figma"}</CardTitle><CardDescription>{(t as any).figmaDesc || "Personal Access Token for Figma design integration"}</CardDescription></CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2"><Label htmlFor="figmaToken">{t.figmaToken || "Figma Access Token"}</Label><SecretInput id="figmaToken" value={figmaAccessToken} onChange={setFigmaAccessToken} show={showFigmaToken} onToggle={() => setShowFigmaToken(!showFigmaToken)} placeholder={t.figmaTokenPlaceholder || "figd_..."} /></div>
+          <div className="space-y-2"><Label htmlFor="figmaToken">{(t as any).figmaToken || "Figma Access Token"}</Label><SecretInput id="figmaToken" value={figmaAccessToken} onChange={setFigmaAccessToken} show={showFigmaToken} onToggle={() => setShowFigmaToken(!showFigmaToken)} placeholder={(t as any).figmaTokenPlaceholder || "figd_..."} /></div>
         </CardContent>
       </Card>
       <Button onClick={handleSave} disabled={isSaving} className="w-full" size="lg">

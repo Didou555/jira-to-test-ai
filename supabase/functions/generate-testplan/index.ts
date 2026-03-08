@@ -62,6 +62,44 @@ serve(async (req) => {
       userPromptParts.push(`## User Feedback for Correction\n${feedback}`);
     }
 
+    // Build multimodal content if Figma images are provided
+    const { figmaImages } = await (async () => {
+      try {
+        const body = await req.clone().json();
+        return { figmaImages: body.figmaImages || [] };
+      } catch {
+        return { figmaImages: [] };
+      }
+    })();
+
+    // Re-parse the original body fields we already destructured
+    const userContent: Array<Record<string, unknown>> = [];
+
+    // Add text content
+    userContent.push({
+      type: "text",
+      text: userPromptParts.join("\n\n"),
+    });
+
+    // Add Figma images if available (multimodal)
+    if (figmaImages && figmaImages.length > 0) {
+      userContent.push({
+        type: "text",
+        text: "\n\n## Figma Design Screenshots\nThe following images show the UI design from Figma. Use them to create more accurate and comprehensive test cases covering visual elements, layout, interactions, and accessibility.",
+      });
+
+      for (const img of figmaImages) {
+        userContent.push({
+          type: "image",
+          source: {
+            type: "base64",
+            media_type: img.mimeType || "image/png",
+            data: img.base64,
+          },
+        });
+      }
+    }
+
     const bedrockBody = {
       anthropic_version: "bedrock-2023-05-31",
       max_tokens: 8192,
@@ -69,7 +107,7 @@ serve(async (req) => {
       messages: [
         {
           role: "user",
-          content: userPromptParts.join("\n\n"),
+          content: figmaImages && figmaImages.length > 0 ? userContent : userPromptParts.join("\n\n"),
         },
       ],
     };

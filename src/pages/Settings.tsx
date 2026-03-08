@@ -101,6 +101,7 @@ const Settings = () => {
         setAwsSecretAccessKey(data.aws_secret_access_key || "");
         setAwsRegion(data.aws_region || "us-east-1");
         setAwsSessionToken(data.aws_session_token || "");
+        setFigmaAccessToken(data.figma_access_token || "");
       }
     } catch (error: any) {
       if (isSessionError(error)) {

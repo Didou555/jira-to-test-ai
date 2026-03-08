@@ -189,6 +189,12 @@ const Settings = () => {
           <div className="space-y-2"><Label htmlFor="awsSession">{t.awsSession}</Label><SecretInput id="awsSession" value={awsSessionToken} onChange={setAwsSessionToken} show={showAwsSession} onToggle={() => setShowAwsSession(!showAwsSession)} placeholder={t.awsSessionPlaceholder} /></div>
         </CardContent>
       </Card>
+      <Card>
+        <CardHeader><CardTitle>{t.figma || "Figma"}</CardTitle><CardDescription>{t.figmaDesc || "Personal Access Token for Figma design integration"}</CardDescription></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2"><Label htmlFor="figmaToken">{t.figmaToken || "Figma Access Token"}</Label><SecretInput id="figmaToken" value={figmaAccessToken} onChange={setFigmaAccessToken} show={showFigmaToken} onToggle={() => setShowFigmaToken(!showFigmaToken)} placeholder={t.figmaTokenPlaceholder || "figd_..."} /></div>
+        </CardContent>
+      </Card>
       <Button onClick={handleSave} disabled={isSaving} className="w-full" size="lg">
         {isSaving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
         {t.save}

@@ -341,11 +341,28 @@ const Index = () => {
         });
       }
 
+      // Fetch Figma images if links are available
+      let figmaImages: any[] = [];
+      if (context.figmaLinks?.length > 0) {
+        try {
+          const { data: figmaData } = await supabase.functions.invoke("fetch-figma-images", {
+            body: { figmaLinks: context.figmaLinks },
+          });
+          if (figmaData?.images?.length > 0) {
+            figmaImages = figmaData.images;
+            console.log(`Fetched ${figmaImages.length} Figma design images`);
+          }
+        } catch (figmaErr) {
+          console.warn("Could not fetch Figma images, continuing without:", figmaErr);
+        }
+      }
+
       const { data: result, error: genError } = await supabase.functions.invoke("generate-testplan", {
         body: {
           storyContext: context,
           updateMode: isUpdate,
           existingTestPlan: isUpdate && existingTestPlan ? existingTestPlan.currentTestPlan : undefined,
+          figmaImages,
         },
       });
 

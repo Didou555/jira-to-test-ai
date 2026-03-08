@@ -34,11 +34,13 @@ const Settings = () => {
   const [awsSecretAccessKey, setAwsSecretAccessKey] = useState("");
   const [awsRegion, setAwsRegion] = useState("us-east-1");
   const [awsSessionToken, setAwsSessionToken] = useState("");
+  const [figmaAccessToken, setFigmaAccessToken] = useState("");
 
   const [showJiraToken, setShowJiraToken] = useState(false);
   const [showQmetryToken, setShowQmetryToken] = useState(false);
   const [showAwsSecret, setShowAwsSecret] = useState(false);
   const [showAwsSession, setShowAwsSession] = useState(false);
+  const [showFigmaToken, setShowFigmaToken] = useState(false);
 
   useEffect(() => { if (user) loadApiKeys(); }, [user]);
 

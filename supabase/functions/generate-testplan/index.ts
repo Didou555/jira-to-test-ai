@@ -18,7 +18,7 @@ serve(async (req) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     if (authError || !user) throw new Error("Unauthorized");
 
-    const { storyContext, systemPrompt, updateMode, existingTestPlan, feedback } = await req.json();
+    const { storyContext, systemPrompt, updateMode, existingTestPlan, feedback, figmaImages } = await req.json();
     if (!storyContext) throw new Error("storyContext is required");
 
     const apiKeys = await getUserApiKeys(supabase, user.id);
@@ -61,16 +61,6 @@ serve(async (req) => {
     if (feedback) {
       userPromptParts.push(`## User Feedback for Correction\n${feedback}`);
     }
-
-    // Build multimodal content if Figma images are provided
-    const { figmaImages } = await (async () => {
-      try {
-        const body = await req.clone().json();
-        return { figmaImages: body.figmaImages || [] };
-      } catch {
-        return { figmaImages: [] };
-      }
-    })();
 
     // Re-parse the original body fields we already destructured
     const userContent: Array<Record<string, unknown>> = [];

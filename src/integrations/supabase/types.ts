@@ -75,6 +75,7 @@ export type Database = {
           aws_secret_access_key: string | null
           aws_session_token: string | null
           created_at: string
+          figma_access_token: string | null
           id: string
           jira_api_token: string | null
           jira_base_url: string | null
@@ -89,6 +90,7 @@ export type Database = {
           aws_secret_access_key?: string | null
           aws_session_token?: string | null
           created_at?: string
+          figma_access_token?: string | null
           id?: string
           jira_api_token?: string | null
           jira_base_url?: string | null
@@ -103,6 +105,7 @@ export type Database = {
           aws_secret_access_key?: string | null
           aws_session_token?: string | null
           created_at?: string
+          figma_access_token?: string | null
           id?: string
           jira_api_token?: string | null
           jira_base_url?: string | null

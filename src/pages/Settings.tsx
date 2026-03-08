@@ -34,11 +34,13 @@ const Settings = () => {
   const [awsSecretAccessKey, setAwsSecretAccessKey] = useState("");
   const [awsRegion, setAwsRegion] = useState("us-east-1");
   const [awsSessionToken, setAwsSessionToken] = useState("");
+  const [figmaAccessToken, setFigmaAccessToken] = useState("");
 
   const [showJiraToken, setShowJiraToken] = useState(false);
   const [showQmetryToken, setShowQmetryToken] = useState(false);
   const [showAwsSecret, setShowAwsSecret] = useState(false);
   const [showAwsSession, setShowAwsSession] = useState(false);
+  const [showFigmaToken, setShowFigmaToken] = useState(false);
 
   useEffect(() => { if (user) loadApiKeys(); }, [user]);
 
@@ -99,6 +101,7 @@ const Settings = () => {
         setAwsSecretAccessKey(data.aws_secret_access_key || "");
         setAwsRegion(data.aws_region || "us-east-1");
         setAwsSessionToken(data.aws_session_token || "");
+        setFigmaAccessToken(data.figma_access_token || "");
       }
     } catch (error: any) {
       if (isSessionError(error)) {
@@ -121,6 +124,7 @@ const Settings = () => {
         qmetry_api_token: qmetryApiToken || null,
         aws_access_key_id: awsAccessKeyId || null, aws_secret_access_key: awsSecretAccessKey || null,
         aws_region: awsRegion || "us-east-1", aws_session_token: awsSessionToken || null,
+        figma_access_token: figmaAccessToken || null,
       };
       const { error } = await invokeWithRetry("manage-api-keys", payload);
       if (error) throw error;
@@ -183,6 +187,12 @@ const Settings = () => {
           <div className="space-y-2"><Label htmlFor="awsSecret">{t.awsSecret}</Label><SecretInput id="awsSecret" value={awsSecretAccessKey} onChange={setAwsSecretAccessKey} show={showAwsSecret} onToggle={() => setShowAwsSecret(!showAwsSecret)} placeholder={t.awsSecretPlaceholder} /></div>
           <div className="space-y-2"><Label htmlFor="awsRegion">{t.awsRegion}</Label><Input id="awsRegion" value={awsRegion} onChange={(e) => setAwsRegion(e.target.value)} placeholder="us-east-1" /></div>
           <div className="space-y-2"><Label htmlFor="awsSession">{t.awsSession}</Label><SecretInput id="awsSession" value={awsSessionToken} onChange={setAwsSessionToken} show={showAwsSession} onToggle={() => setShowAwsSession(!showAwsSession)} placeholder={t.awsSessionPlaceholder} /></div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader><CardTitle>{(t as any).figma || "Figma"}</CardTitle><CardDescription>{(t as any).figmaDesc || "Personal Access Token for Figma design integration"}</CardDescription></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2"><Label htmlFor="figmaToken">{(t as any).figmaToken || "Figma Access Token"}</Label><SecretInput id="figmaToken" value={figmaAccessToken} onChange={setFigmaAccessToken} show={showFigmaToken} onToggle={() => setShowFigmaToken(!showFigmaToken)} placeholder={(t as any).figmaTokenPlaceholder || "figd_..."} /></div>
         </CardContent>
       </Card>
       <Button onClick={handleSave} disabled={isSaving} className="w-full" size="lg">

@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.reset-password]
 verify_jwt = false
+
+[functions.fetch-figma-images]
+verify_jwt = false

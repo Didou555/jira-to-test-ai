@@ -124,6 +124,7 @@ const Settings = () => {
         qmetry_api_token: qmetryApiToken || null,
         aws_access_key_id: awsAccessKeyId || null, aws_secret_access_key: awsSecretAccessKey || null,
         aws_region: awsRegion || "us-east-1", aws_session_token: awsSessionToken || null,
+        figma_access_token: figmaAccessToken || null,
       };
       const { error } = await invokeWithRetry("manage-api-keys", payload);
       if (error) throw error;
